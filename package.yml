@@ -1,0 +1,26 @@
+name: LSD.Script
+fullname: Lovely Script Declarations
+filename: script.js
+description: Lazy evaluated reactive scripting language with free execution flow
+license: Public domain, http://unlicense.org
+copyright: Yaroslaff Fedin
+author: inviz
+category: Script
+current: 0.2
+tags: [aop, reactive, script]
+sources:
+  - Source/Script.js
+  - Source/Object/Object.js
+  - Source/Object/Object.Stack.js
+  - Source/Object/Struct.js
+  - Source/Object/Array.js
+  - Source/Object/Scope.js
+  - Source/Variable/Variable.js
+  - Source/Variable/Function.js
+  - Source/Variable/Block.js
+  - Source/Variable/Selector.js
+  - Source/Helpers/Helpers.js
+  - Source/Helpers/Native.js
+  - Source/Helpers/Operators.js
+  - Source/Parser/Parser.js
+  - Source/Parser/Interpolation.js
