@@ -25,7 +25,6 @@ provides:
 */
 
 LSD.Array = function(arg) {
-  this.values = [];
   this.length = 0;
   var j = arguments.length;
   if (j == 1) {
@@ -44,8 +43,7 @@ LSD.Array.prototype = {
   push: function() {
     for (var i = 0, j = arguments.length, length, arg; i < j; i++) {
       arg = arguments[i];
-      length = this.values.push(arg);
-      this.set(arg, length - 1);
+      this.set(arg, this.length);
     }
   },
   set: function(value, index, state, old) {
@@ -69,16 +67,13 @@ LSD.Array.prototype = {
     }
     return -1;
   },
-  slice: function(index, offset) {
-    return this.values.slice(index, offset);
-  },
   splice: function(index, offset) {
-    var values =  this.values.splice(index, offset);
     if (index < 0) index = this.length - index;
     if (offset == null) offset = this.length - index;
     var args = Array.prototype.slice.call(arguments, 2);
     var length = args.length;
     var shift = length - offset;
+    var values = [];
     if (shift && index < this.length) {
       // we have to shift the tail of array either left or right, 
       // each needs its own loop direction to avoid overwriting values 
@@ -87,14 +82,20 @@ LSD.Array.prototype = {
           this.set(this[i], i + shift, true, i)
       else 
         for (var i = index - shift; i < this.length; i++) {
-          if (i + shift <= index - shift) this.set(this[i + shift], i + shift, false)
+          if (i + shift <= index - shift) {
+            values.push(this[i + shift])
+            this.set(this[i + shift], i + shift, false);
+          }
           this.set(this[i], i + shift, true, i);
         }
     }
     this.length += shift - length;
     // insert new values
     for (var i = 0; i < length; i++) {
-      if (i < offset) this.set(args[i], i + index, false);
+      if (i < offset) {
+        values.push(this[i]);
+        this.set(this[i], i + index, false);
+      }
       this.set(args[i], i + index, true);
     }
     return values;
