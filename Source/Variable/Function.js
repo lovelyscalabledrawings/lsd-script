@@ -68,7 +68,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
       this.evaluator = LSD.Script.Evaluators[this.name] || null;
     if (this.name) 
       var literal = LSD.Script.Literal[this.name];
-    for (var i = 0, j = this.args.length, arg, piped; i < j; i++) {
+    for (var i = 0, j = this.args.length, arg, piped = this.prepiped; i < j; i++) {
       if ((arg = this.args[i]) == null) continue;
       if (i === literal) {
         if (!arg.type || arg.type != 'variable') throw "Unexpected token, argument must be a variable name";
@@ -88,7 +88,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
       }
     }
     if (this.context !== false) this.context = this.getContext();
-    if (!this.name || args == null || LSD.Script.Operators[this.name] || this.name == ',' 
+    if (args == null || LSD.Script.Operators[this.name] || this.name == ',' 
     || !(this.piped || this.context)) {
       this.isContexted = this.isPiped = false;
       return args;
@@ -129,15 +129,15 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
   pipe: function(argument) {
     var piped = this.piped;
     this.piped = argument;
-    if (piped != this.piped && this.isPiped && this.parent) this.fetch(true)
+    if (piped != this.piped && this.parent) this.fetch(true)
   },
   
   translate: function(arg, state, i, piped) {
     if (!arg.variable && state) arg = LSD.Script.compile(arg, this.source);
     if (arg.variable) {
-      if (arg.pipe) arg.pipe(piped);
       if (i !== null) this.args[i] = arg;
       if (state) {
+        if (arg.pipe && piped != null) arg.pipe(piped);
         if (arg.parent != this) {
           arg.parent = this;
           arg.attach();

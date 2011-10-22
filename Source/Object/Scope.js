@@ -42,7 +42,7 @@ Object.append(LSD.Script.Scope, {
   
   lookup: function(object, name, arg) {
     for (var scope = object; scope; scope = scope.parentScope)
-      if (scope.methods[name]) return scope.methods[name];
+      if (scope.methods.hasOwnProperty(name)) return scope.methods[name];
     if (arg != null) if (arg[name] != null && arg[name].call) return true;
     return LSD.Script.Helpers[name] || Object[name];
   }

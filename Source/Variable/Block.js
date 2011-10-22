@@ -75,6 +75,7 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
     if (state !== false) {
       this.invoked = args;
       this.frozen = true;
+      this.prepiped = args[0];
       if (this.locals)
         for (var local, i = 0; local = this.locals[i]; i++)
           this.variables.set(local.name, args[i]);

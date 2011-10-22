@@ -164,7 +164,7 @@ LSD.Object.prototype = {
     if (index > -1) {
       var finder = function(value, old) {
         var object = value || old;
-        if (object.watch) {
+        if (object.watch && object.merge) {
           object[value ? 'watch' : 'unwatch'](key.substring(index + 1), callback);
         } else if (value != null) {
           var result = Object.getFromPath(object, key.substring(index + 1));
