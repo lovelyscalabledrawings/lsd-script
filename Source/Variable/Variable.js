@@ -59,6 +59,8 @@ LSD.Script.Variable = function(input, source, output) {
 LSD.Script.Variable.uid = 0;
 
 LSD.Script.Variable.prototype = {
+  type: 'variable',
+  
   variable: true,
   
   set: function(value, reset) {
@@ -71,18 +73,24 @@ LSD.Script.Variable.prototype = {
   onSet: function(value) {
     if (value == null && this.placeholder) value = this.placeholder;
     if (this.output) this.update(value);
-    if (this.parent && this.attached) this.parent.set();
+    if (this.attached) {
+      if (this.parent && !this.parent.translating) this.parent.set();
+      if (this.parents)
+        for (var i = 0, parent; parent = this.parents[i++];) {
+          if (!parent.translating) parent.set();
+        }
+    }
   },
   
-  attach: function() {
-    return this.fetch(true);
+  attach: function(origin) {
+    return this.fetch(true, origin);
   },
   
-  detach: function() {
-    return this.fetch(false);
+  detach: function(origin) {
+    return this.fetch(false, origin);
   },
   
-  fetch: function(state) {
+  fetch: function(state, origin) {
     this.attached = state;
     if (!this.setter) this.setter = this.set.bind(this);
     if (this.source != null)

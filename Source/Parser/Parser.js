@@ -23,6 +23,7 @@ provides:
 
 LSD.Script.Parser = function() {};
 LSD.Script.Parser.prototype.parse = LSD.Script.parse = function(value) {
+  if (value.indexOf('\n') > -1) return LSD.Script.Parser.multiline(value);
   if (LSD.Script.parsed) {
     var cached = LSD.Script.parsed[name];
     if (cached) return cached;
@@ -143,7 +144,7 @@ LSD.Script.Parser.prototype.parse = LSD.Script.parse = function(value) {
           selector = {type: 'selector', value: text};
           scope.push(selector);
         } else {
-          selector.value += ' ' + text;
+          selector.value += ((!whitespaced && tail) ? '' : ' ') + text;
           text = null;
         }
       }
@@ -157,9 +158,74 @@ LSD.Script.Parser.prototype.parse = LSD.Script.parse = function(value) {
       var pop = stack[stack.length - 1]
       if (pop && pop.scope) scope = pop.scope;
     }
+    
+    var whitespaced = !!found[names.whitespace];
     operator = null;
   };
   return (LSD.Script.parsed[value] = (result.length == 1 ? result[0] : result));
+};
+
+LSD.Script.Parser.multiline = function(source) {
+  for (var match, lines = [], regex = LSD.Script.Parser.rLine; match = regex.exec(source);) 
+    if (match[2] !== "") lines.push(match.splice(1));
+  var args, baseline, blocks = [], indent, level = 0;
+  for (var k = 0, line, results = [], previous; line = lines[k]; k++) {
+    if (baseline) {
+      if (line[0].substr(0, baseline.length) != baseline) {
+        throw "Inconsistent indentation: `" + 
+          line[0].replace(/\t/g, '\\t').replace(/\s/g, '\\s') + 
+          "` but `" + 
+          baseline.replace(/\t/g, '\\t').replace(/\s/g, '\\s') + 
+          "` is a baseline"
+      }
+      var extras = line[0].slice(baseline.length);
+      if (indent) {
+        for (var i = 0, j = extras.length, step = indent.length; i * step < j; i ++) {
+          if ((i == 0 && (j % step)) || extras.substr(i * step, step) != indent)
+            throw "Inconsistent indentation: `" + 
+              line[0].replace(/\t/g, '\\t').replace(/\s/g, '\\s') + 
+              "` but `" + 
+              baseline.replace(/\t/g, '\\t').replace(/\s/g, '\\s') + 
+              "` is a baseline, and `" + 
+              indent.replace(/\t/g, '\\t').replace(/\s/g, '\\s') +
+              "` is chosen indent level"
+        }
+      } else if (extras.length) {
+        i = 1;
+        indent = extras;
+      }
+      var diff = i - level;
+      if (diff > 1)
+        throw "Incorrect indentation: A line is " + (i - level) + " levels deeper then previous line";
+      if (diff > 0) {
+        var block = {type: 'block', value: []};
+        if (args) block.locals = args;
+        var object = previous;
+        if (object.push) object = object[object.length - 1];
+        if (object.type == 'function') {
+          object.value.push(block);
+        }
+        blocks.push(block);
+      } else {
+        if (diff < 0) {
+          blocks.splice(diff)
+        }
+        if (args) throw "Block arguments were given, but there's no block on next line"
+      }
+      level = i;
+    } else baseline = line[0];
+    previous = LSD.Script.parse(line[1]);
+    if (blocks.length) {
+      blocks[blocks.length - 1].value.push(previous)
+    } else {
+      results.push(previous);
+    }
+    if (line[2]) {
+      args = LSD.Script.parse(line[2]);
+      if (!args.push) args = [args];
+    } else args = null;
+  }
+  return results;
 };
 
 LSD.Script.Parser.prototype.compile = LSD.Script.compile = function(object, source, output, parse) {
@@ -183,6 +249,7 @@ LSD.Script.Parser.prototype.compile = LSD.Script.compile = function(object, sour
 
 LSD.Script.Parser.rVariable = /^[a-z0-9][a-z_\-0-9.\[\]]*$/ig;
 LSD.Script.Parser.Combinators = Array.object('+', '>', '!+', '++', '!~', '~~', '&', '&&', '$', '$$');
+LSD.Script.Parser.rLine = /^([ \t]*)([^\n]*?)\s*(?:\|([^|]*?)\|\s*)?(?:\n|$)/gm
 
 !function(Parser) {
   var x = combineRegExp

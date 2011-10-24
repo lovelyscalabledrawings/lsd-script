@@ -66,6 +66,10 @@ Object.append(LSD.Script.Helpers, {
   
   pluralize_word: function(count, singular, plural) {
     return (count == 1) ? singular : (plural || (singular.pluralize()));
+  },
+  
+  'if': function(condition, block) {
+    return block.call(block, condition ? 'yield' : 'unyield')
   }
 
 });

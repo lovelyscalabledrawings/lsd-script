@@ -27,7 +27,7 @@ provides:
   in regular javascript functions as a callback.
 */
 
-LSD.Script.Block = function(input, source, output, locals) {
+LSD.Script.Block = function(input, source, output, locals, origin) {
   LSD.Script.Function.apply(this, arguments);
   delete this.name;
   this.callback = this.yield.bind(this);
@@ -39,58 +39,112 @@ LSD.Script.Block = function(input, source, output, locals) {
     LSD.Script.Scope(this, this.source);
     this.source = this; 
   }
+  this.origin = origin;
+  if (!origin) {
+    this.onEvaluate = function(token) {
+      if (token.type == 'variable')
+        if (locals)
+          for (var i = 0, j = locals.length; i < j; i++) {
+            var dot = token.input.indexOf('.');
+            var name = dot > -1 ? token.input.substring(0, dot) : token.input;
+            if (locals[i].name == name)
+              for (var parent = token; parent; parent = parent.parent)
+                if (parent == this) break;
+                else parent.local = true;
+          }
+    }.bind(this)
+  }
 }
 
 LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
+  type: 'block',
+  
   yield: function(keyword, args, callback, index, old) {
+    if (args == null) args = [];
     switch (keyword) {
       case 'yield':
         if (!this.yields) this.yields = {};
         var block = this.yields[old == null ? index : old];
+        if (!block) {
+          for (var property in this.yields) {
+            var yielded = this.yields[property];
+            if (yielded.invoked) break;
+            else yielded = null;
+          }
+        }
         if (old != null) this.yields[index] = block;
-        if (!block) block = this.yields[index] = new LSD.Script.Block(this.input, this.source, null, this.locals);
+        if (!block) block = this.yields[index] = new LSD.Script.Block(this.input, this.source, null, this.locals, yielded);
         var invoked = block.invoked;
         block.yielder = callback;
         block.invoke(args, true, !!invoked);
-        if (invoked)
+        if (invoked && block.locals)
           for (var local, i = 0; local = block.locals[i]; i++)
             block.variables.unset(local.name, invoked[i]);
-        callback.block = block;
+        if (callback) callback.block = block;
         return block;
       case 'unyield':
-        callback.call(this, null, args[0], args[1], args[2]);
+        if (callback) callback.call(this, null, args[0], args[1], args[2]);
         var block = this.yields[index];
-        if (block.invoked) callback.block.invoke(null, false);
+        if (callback && block.invoked) callback.block.invoke(null, false);
         delete block.yielder;
         block.detach();
-        delete callback.block;
-        delete callback.parent;
+        if (callback) {
+          delete callback.block;
+          delete callback.parent;
+        }
         break;
       default:
         return this.invoke(arguments)
     }
   },
   
-  invoke: function(args, state, reset) {
+  attach: function() {
+    if (this.invoked) {
+      this.fetch(true);
+    } else {
+      if (this.yields)
+        for (var property in this.yields) {
+          var yield = this.yields[property];
+          if (yield) yield.attach();
+        }
+    }
+  },
+  detach: function() {
+    console.log('detach block', this.invoked, this.yields)
+    if (this.invoked) {
+      this.fetch(false);
+    } else {
+      if (this.yields)
+        for (var property in this.yields) {
+          var yield = this.yields[property];
+          if (yield) this.yield('unyield', null, null, property);
+        }
+    }
+  },
+  
+  invoke: function(args, state, reset, origin) {
     if (state !== false) {
       this.invoked = args;
       this.frozen = true;
-      this.prepiped = args[0];
-      if (this.locals)
-        for (var local, i = 0; local = this.locals[i]; i++)
-          this.variables.set(local.name, args[i]);
+      if (args != null) {
+        this.prepiped = args[0];
+        if (this.locals)
+          for (var local, i = 0; local = this.locals[i]; i++)
+            this.variables.set(local.name, args[i]);
+      }
       delete this.frozen;
-      if (state != null) this.fetch(true, reset);
+      if (state != null) this.fetch(true, origin, reset);
       else var result = this.execute()
     }
     if (state !== true) {
       if (args == null) args = this.invoked;
       if (args === this.invoked || state == null) this.invoked = false;
       if (state != null) this.fetch(false);
-      if (this.locals)
+      if (this.locals && args != null)
         for (var local, i = 0; local = this.locals[i]; i++)
           this.variables.unset(local.name, args[i]);
     }
+    if (this.onEvaluate) delete this.onEvaluate;
     return result;
   },
   

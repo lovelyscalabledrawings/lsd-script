@@ -106,7 +106,7 @@ LSD.Script.Literal = {
   method. 
 */
 
-LSD.Script.Reversable = {
+LSD.Script.Revertable = {
   '=': 'undefine',
   'define': 'undefine',
   'undefine': 'define'

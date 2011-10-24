@@ -121,6 +121,10 @@ LSD.Array.prototype = {
       block.callback = block;
     }
     this[state !== false ? 'watch' : 'unwatch'](block.watcher);
+  },
+  each: function(callback) {
+    if (callback.block) return this.iterate(callback)
+    else return Array.prototype.each.apply(this, arguments);
   }
 };
 
