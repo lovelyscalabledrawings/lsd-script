@@ -153,7 +153,7 @@ LSD.Script.Parser.prototype.parse = LSD.Script.parse = function(value) {
       if (fn) fn = null;
       else args = null;
     }
-    if (token && scope[scope.length - 1] != token) token = null;
+    if (token && scope[scope.length - 1] != token && !tail) token = null;
     if (!operator && text && stack.length) {
       var pop = stack[stack.length - 1]
       if (pop && pop.scope) scope = pop.scope;
