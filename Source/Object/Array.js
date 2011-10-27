@@ -43,20 +43,22 @@ LSD.Array.prototype = {
   push: function() {
     for (var i = 0, j = arguments.length, length, arg; i < j; i++) {
       arg = arguments[i];
-      this.set(arg, this.length);
+      this.set(arg, this.length >>> 0);
     }
   },
   set: function(value, index, state, old) {
     if (state !== false) {
       this[index] = value;
       if (index + 1 > this.length) this.length = index + 1;
-    } else {  
+    } else {
+      console.log('unset', index)
       delete this[index];
       if (index + 1 == this.length) this.length = index;
     }
-    this.fireEvent('change', value, index, !(state === false), old);
+    var result = this.fireEvent('change', value, index, !(state === false), old);
     if (state === false || old != null)
       this.fireEvent(state === false ? 'remove' : 'add', value, index, old);
+    return result;
   },
   indexOf: function(object, from) {
     var id = typeof object == 'object' ? LSD.getID(object) : object;
@@ -68,20 +70,20 @@ LSD.Array.prototype = {
     return -1;
   },
   splice: function(index, offset) {
-    if (index < 0) index = this.length - index;
-    if (offset == null) offset = this.length - index;
     var args = Array.prototype.slice.call(arguments, 2);
-    var length = args.length;
-    var shift = length - offset;
+    var arity = args.length, length = this.length;
+    if (index < 0) index = length + index;
+    if (offset == null) offset = length - index;
+    var shift = arity - offset;
     var values = [];
-    if (shift && index < this.length) {
+    if (shift && index < length) {
       // we have to shift the tail of array either left or right, 
       // each needs its own loop direction to avoid overwriting values 
       if (shift > 0)
-        for (var i = this.length; --i >= index;)
+        for (var i = length; --i > index + shift;)
           this.set(this[i], i + shift, true, i)
-      else 
-        for (var i = index - shift; i < this.length; i++) {
+      else
+        for (var i = index - shift, old; i < length; i++) {
           if (i + shift <= index - shift) {
             values.push(this[i + shift])
             this.set(this[i + shift], i + shift, false);
@@ -89,15 +91,17 @@ LSD.Array.prototype = {
           this.set(this[i], i + shift, true, i);
         }
     }
-    this.length += shift - length;
+    this.length = length + shift;
     // insert new values
-    for (var i = 0; i < length; i++) {
+    for (var i = 0; i < arity; i++) {
       if (i < offset) {
         values.push(this[i]);
-        this.set(this[i], i + index, false);
+        this.set(this[i + index], i + index, false, false);
       }
-      this.set(args[i], i + index, true);
+      this.set(args[i], i + index, true, i < offset ? false : null);
     }
+    for (var i = this.length; i < length; i++)
+      this.set(this[i], i, false);
     return values;
   },
   watch: function(callback) {
@@ -125,6 +129,32 @@ LSD.Array.prototype = {
   each: function(callback) {
     if (callback.block) return this.iterate(callback)
     else return Array.prototype.each.apply(this, arguments);
+  },
+  filter: function(callback) {
+    if (callback.block) {
+      var filtered = [];
+      var shifts = [];
+      this.iterate(callback, function(result, value, index, state, old) {
+        var shift = shifts[index], len = shifts.length;
+        if (shift == null) {
+          for (var i = shifts.length; i <= index; i++) 
+            shifts[i] = (shifts[i - 1]) || 0
+          shift = shifts[index] = shifts[index] || 0;
+        }
+        var diff = shift - (shifts[index - 1] || 0)
+        if (result && state) {
+          if (old === false) filtered.splice(index - shift, 0, value);
+          else filtered[index - shift] = value;
+        }  
+        if (state ? !result && !diff : diff) {
+          for (var i = index, j = shifts.length; i < j; i++) 
+            shifts[i] += (state ? 1 : -1);
+          if (!state) shifts.splice(index, 1);
+        }
+        if (!state && result && shift == (shifts[index - 1] || 0)) filtered.splice(index - shift, 1);
+      })
+      return filtered;
+    } else return Array.prototype.filter.apply(this, arguments);
   }
 };
 

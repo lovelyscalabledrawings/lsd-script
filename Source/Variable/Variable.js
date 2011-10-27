@@ -87,6 +87,7 @@ LSD.Script.Variable.prototype = {
   },
   
   detach: function(origin) {
+    delete this.value;
     return this.fetch(false, origin);
   },
   

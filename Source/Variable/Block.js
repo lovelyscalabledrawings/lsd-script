@@ -64,7 +64,13 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
     switch (keyword) {
       case 'yield':
         if (!this.yields) this.yields = {};
-        var block = this.yields[old == null ? index : old];
+        if (old == null || old === false) {
+          var block = this.yields[index];
+        } else {
+          var block = this.yields[index] = this.yields[old];
+          delete block.value
+          this.yields[old] = false
+        }
         if (!block) {
           for (var property in this.yields) {
             var yielded = this.yields[property];
@@ -82,15 +88,17 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
             block.variables.unset(local.name, invoked[i]);
         if (callback) callback.block = block;
         return block;
-      case 'unyield':
-        if (callback) callback.call(this, null, args[0], args[1], args[2]);
+      case 'unyield':    
         var block = this.yields[index];
-        if (callback && block.invoked) callback.block.invoke(null, false);
-        delete block.yielder;
-        block.detach();
-        if (callback) {
-          delete callback.block;
-          delete callback.parent;
+        if (callback) callback.call(this, block ? block.value : null, args[0], args[1], args[2], args[3]);
+        if (block) {
+          if (callback && block.invoked) callback.block.invoke(null, false);
+          delete block.yielder;
+          block.detach();
+          if (callback) {
+            delete callback.block;
+            delete callback.parent;
+          }
         }
         break;
       default:
@@ -110,7 +118,7 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
     }
   },
   detach: function() {
-    console.log('detach block', this.invoked, this.yields)
+    delete this.value;
     if (this.invoked) {
       this.fetch(false);
     } else {
@@ -155,7 +163,16 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
   onSet: function(value) {
     if (this.output) this.update(value);
     if (this.yielder && this.invoked && this.invoked !== true)
-      this.yielder(value, this.invoked[0], this.invoked[1], this.invoked[2]);
+      this.yielder(value, this.invoked[0], this.invoked[1], this.invoked[2], this.invoked[3]);
     if (this.parent && !this.invoked) this.parent.set();
   }
-})
+});
+
+LSD.Function = function() {
+  var args = Array.prototype.slice.call(arguments, 0);
+  var body = LSD.Script.parse(args.pop());
+  if (!body.push) body = [body];
+  return new LSD.Script.Block(body, null, null, args.map(function(arg) {
+    return {type: 'variable', name: arg}
+  })).value
+};
