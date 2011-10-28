@@ -64,12 +64,14 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
     switch (keyword) {
       case 'yield':
         if (!this.yields) this.yields = {};
+        if (!this.values) this.values = {};
         if (old == null || old === false) {
           var block = this.yields[index];
         } else {
           var block = this.yields[index] = this.yields[old];
+          this.values[old] = block.value;
           delete block.value
-          this.yields[old] = false
+          delete this.yields[old];
         }
         if (!block) {
           for (var property in this.yields) {
@@ -90,9 +92,9 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
         return block;
       case 'unyield':    
         var block = this.yields[index];
-        if (callback) callback.call(this, block ? block.value : null, args[0], args[1], args[2], args[3]);
+        if (callback) callback.call(this, block ? block.value : this.values ? this.values[index] : null, args[0], args[1], args[2], args[3]);
         if (block) {
-          if (callback && block.invoked) callback.block.invoke(null, false);
+          if (callback && block.invoked) block.invoke(null, false);
           delete block.yielder;
           block.detach();
           if (callback) {

@@ -73,6 +73,7 @@ LSD.Array.prototype = {
     var arity = args.length, length = this.length;
     if (index < 0) index = length + index;
     if (offset == null) offset = length - index;
+    offset = Math.min(length - index, offset);
     var shift = arity - offset;
     var values = [];
     // when given arguments to insert
@@ -84,7 +85,7 @@ LSD.Array.prototype = {
       } else {    
         // shift array forwards
         if (i == offset)
-          for (var j = length, k = index + arity - 1; --j >= k;)
+          for (var j = length, k = index + arity - shift; --j >= k;)
             this.set(this[j], j + shift, true, j)
       }
       // insert new value
@@ -102,8 +103,10 @@ LSD.Array.prototype = {
     this.length = length + shift;
     for (var i = this.length; i < length; i++)
       this.set(this[i], i, false);
-    console.log(length, this.length, [index, offset, arity])
     return values;
+  },
+  pop: function() {
+    return this.splice(-1, 1)[0];
   },
   watch: function(callback) {
     for (var i = 0, j = this.length >>> 0; i < j; i++)
@@ -142,22 +145,23 @@ LSD.Array.prototype = {
             shifts[i] = (shifts[i - 1]) || 0
           shift = shifts[index] = shifts[index] || 0;
         }
+        if (state && old != null && shifts[old] > (shifts[old - 1] || 0)) {
+          for (var i = old, j = Math.max(shifts.length, index); i < j; i++)
+            shifts[i]--;
+        } else {
+          var diff = shift - (shifts[index - 1] || 0)
+        }
         if (result && state) {
           if (old === false) filtered.splice(index - shift, 0, value);
           else filtered[index - shift] = value;
         }
-        var diff = shift - (shifts[index - 1] || 0)
-        console.log(value, index, state, shifts.slice(0));
-        if (state && result && old != null && (shifts[old] == (shifts[old - 1] || 0))) {
-        } else {
-          if (state ? !result && !diff : diff) {
-            for (var i = index, j = shifts.length; i < j; i++) 
-              shifts[i] += (state ? 1 : -1);
-            if (!state) shifts.splice(index, 1);
-          }
+        if (state ? result ? diff : !diff : diff) {
+          for (var i = index, j = shifts.length; i < j; i++) 
+            shifts[i] += (state && !result ? 1 : -1);
+          if (!state) shifts.splice(index, 1);
         }
-          console.log(result, value, [index, old,], state, shifts.slice(0), filtered.slice(0));
-        if (!state && result && shift == (shifts[index - 1] || 0)) filtered.splice(index - shift, 1);
+        if (state ? (!result && old === null) : ((result) && shift == (shifts[index - 1] || 0))) 
+          filtered.splice(index - shift, 1);
       })
       return filtered;
     } else return Array.prototype.filter.apply(this, arguments);
