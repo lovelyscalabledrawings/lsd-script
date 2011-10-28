@@ -156,6 +156,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
       } else {
         if (i !== null) this.args[i] = arg;
         if (state) {
+          if (origin && origin.local) arg.local = true;
           this.translating = true;
           var pipable = (arg.variable && piped !== arg.piped); 
           if (pipable) arg.piped = piped;
