@@ -242,7 +242,7 @@ LSD.toObject = LSD.Object.toObject = LSD.Object.prototype.toObject = function() 
     for (var i = 0, j = obj.length; i < j; i++)
       object[i] = LSD.toObject(obj[i]);
   } else if (obj.setDate) {
-    var object = obj.format('compact');
+    var object = obj.toString();
   } else if (!obj.indexOf && typeof obj == 'object') {
     var object = {};
     for (var key in obj)
