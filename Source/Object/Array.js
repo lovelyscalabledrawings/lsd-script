@@ -51,7 +51,6 @@ LSD.Array.prototype = {
       this[index] = value;
       if (index + 1 > this.length) this.length = index + 1;
     } else {
-      console.log('unset', index)
       delete this[index];
       if (index + 1 == this.length) this.length = index;
     }
@@ -76,32 +75,34 @@ LSD.Array.prototype = {
     if (offset == null) offset = length - index;
     var shift = arity - offset;
     var values = [];
-    if (shift && index < length) {
-      // we have to shift the tail of array either left or right, 
-      // each needs its own loop direction to avoid overwriting values 
-      if (shift > 0)
-        for (var i = length; --i > index + shift;)
-          this.set(this[i], i + shift, true, i)
-      else
-        for (var i = index - shift, old; i < length; i++) {
-          if (i + shift <= index - shift) {
-            values.push(this[i + shift])
-            this.set(this[i + shift], i + shift, false);
-          }
-          this.set(this[i], i + shift, true, i);
-        }
-    }
-    this.length = length + shift;
-    // insert new values
-    for (var i = 0; i < arity; i++) {
+    // when given arguments to insert
+    for (var i = 0, position; i < arity; i++) {
       if (i < offset) {
-        values.push(this[i]);
+        // remove original value
+        values.push(this[i + index]);
         this.set(this[i + index], i + index, false, false);
+      } else {    
+        // shift array forwards
+        if (i == offset)
+          for (var j = length, k = index + arity - 1; --j >= k;)
+            this.set(this[j], j + shift, true, j)
       }
+      // insert new value
       this.set(args[i], i + index, true, i < offset ? false : null);
     }
+    // shift array backwards
+    if (shift < 0 && index < length)
+      for (var i = index + arity - shift, old; i < length; i++) {
+        if (i + shift <= index - shift) {
+          values.push(this[i + shift])
+          this.set(this[i + shift], i + shift, false);
+        }
+        this.set(this[i], i + shift, true, i);
+      }
+    this.length = length + shift;
     for (var i = this.length; i < length; i++)
       this.set(this[i], i, false);
+    console.log(length, this.length, [index, offset, arity])
     return values;
   },
   watch: function(callback) {
@@ -141,16 +142,21 @@ LSD.Array.prototype = {
             shifts[i] = (shifts[i - 1]) || 0
           shift = shifts[index] = shifts[index] || 0;
         }
-        var diff = shift - (shifts[index - 1] || 0)
         if (result && state) {
           if (old === false) filtered.splice(index - shift, 0, value);
           else filtered[index - shift] = value;
-        }  
-        if (state ? !result && !diff : diff) {
-          for (var i = index, j = shifts.length; i < j; i++) 
-            shifts[i] += (state ? 1 : -1);
-          if (!state) shifts.splice(index, 1);
         }
+        var diff = shift - (shifts[index - 1] || 0)
+        console.log(value, index, state, shifts.slice(0));
+        if (state && result && old != null && (shifts[old] == (shifts[old - 1] || 0))) {
+        } else {
+          if (state ? !result && !diff : diff) {
+            for (var i = index, j = shifts.length; i < j; i++) 
+              shifts[i] += (state ? 1 : -1);
+            if (!state) shifts.splice(index, 1);
+          }
+        }
+          console.log(result, value, [index, old,], state, shifts.slice(0), filtered.slice(0));
         if (!state && result && shift == (shifts[index - 1] || 0)) filtered.splice(index - shift, 1);
       })
       return filtered;
