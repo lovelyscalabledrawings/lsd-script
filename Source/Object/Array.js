@@ -168,7 +168,6 @@ LSD.Array.prototype = {
         if (state ? result ? diff : !diff : diff) {
           for (var i = index, j = shifts.length; i < j; i++) 
             shifts[i] += (state && !result ? 1 : -1);
-          if (!state) shifts.splice(index, 1);
         }
         if (state ? (!result && old === null) : ((result) && shift == (shifts[index - 1] || 0))) 
           filtered.splice(index - shift, 1);
