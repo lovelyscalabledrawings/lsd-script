@@ -71,13 +71,14 @@ LSD.Array.prototype = {
   splice: function(index, offset) {
     var args = Array.prototype.slice.call(arguments, 2);
     var arity = args.length, length = this.length;
-    if (index < 0) index = length + index;
+    if (index == null) index = 0;
+    else if (index < 0) index = length + index;
     if (offset == null) offset = length - index;
-    offset = Math.min(length - index, offset);
+    offset = Math.max(0, Math.min(length - index, offset))
     var shift = arity - offset;
     var values = [];
     // when given arguments to insert
-    for (var i = 0, position; i < arity; i++) {
+    for (var i = 0; i < arity; i++) {
       if (i < offset) {
         // remove original value
         values.push(this[i + index]);
@@ -95,18 +96,27 @@ LSD.Array.prototype = {
     if (shift < 0 && index < length)
       for (var i = index + arity - shift, old; i < length; i++) {
         if (i + shift <= index - shift) {
-          values.push(this[i + shift])
+          if (i + shift < index - shift) values.push(this[i + shift])
           this.set(this[i + shift], i + shift, false);
         }
         this.set(this[i], i + shift, true, i);
       }
     this.length = length + shift;
-    for (var i = this.length; i < length; i++)
+    for (var i = this.length; i < length; i++) {
+      if (values.length < - shift)
+        values.push(this[i])
       this.set(this[i], i, false);
+    }
     return values;
   },
   pop: function() {
     return this.splice(-1, 1)[0];
+  },
+  shift: function() {
+    return this.splice(0, 1)[0]
+  },
+  unshift: function() {
+    return this.splice.apply(this, [0, 0].concat(Array.prototype.slice.call(arguments, 0)))
   },
   watch: function(callback) {
     for (var i = 0, j = this.length >>> 0; i < j; i++)
