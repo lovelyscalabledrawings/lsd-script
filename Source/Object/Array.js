@@ -43,10 +43,10 @@ LSD.Array.prototype = {
   push: function() {
     for (var i = 0, j = arguments.length, length, arg; i < j; i++) {
       arg = arguments[i];
-      this.set(arg, this.length >>> 0);
+      this.set(this.length >>> 0, arg);
     }
   },
-  set: function(value, index, state, old) {
+  set: function(index, value, state, old) {
     if (state !== false) {
       this[index] = value;
       if (index + 1 > this.length) this.length = index + 1;
@@ -74,7 +74,7 @@ LSD.Array.prototype = {
     if (index == null) index = 0;
     else if (index < 0) index = length + index;
     if (offset == null) offset = length - index;
-    offset = Math.max(0, Math.min(length - index, offset))
+    else offset = Math.max(0, Math.min(length - index, offset))
     var shift = arity - offset;
     var values = [];
     // when given arguments to insert
@@ -82,30 +82,30 @@ LSD.Array.prototype = {
       if (i < offset) {
         // remove original value
         values.push(this[i + index]);
-        this.set(this[i + index], i + index, false, false);
+        this.set(i + index, this[i + index], false, false);
       } else {    
         // shift array forwards
         if (i == offset)
           for (var j = length, k = index + arity - shift; --j >= k;)
-            this.set(this[j], j + shift, true, j)
+            this.set(j + shift, this[j], true, j)
       }
       // insert new value
-      this.set(args[i], i + index, true, i < offset ? false : null);
+      this.set(i + index, args[i], true, i < offset ? false : null);
     }
     // shift array backwards
     if (shift < 0 && index < length)
       for (var i = index + arity - shift, old; i < length; i++) {
         if (i + shift <= index - shift) {
           if (i + shift < index - shift) values.push(this[i + shift])
-          this.set(this[i + shift], i + shift, false);
+          this.set(i + shift, this[i + shift], false);
         }
-        this.set(this[i], i + shift, true, i);
+        this.set(i + shift, this[i], true, i);
       }
     this.length = length + shift;
     for (var i = this.length; i < length; i++) {
       if (values.length < - shift)
         values.push(this[i])
-      this.set(this[i], i, false);
+      this.set(i, this[i], false);
     }
     return values;
   },
@@ -144,9 +144,9 @@ LSD.Array.prototype = {
     if (callback.block) return this.iterate(callback)
     else return Array.prototype.each.apply(this, arguments);
   },
-  filter: function(callback) {
+  filter: function(callback, plain) {
     if (callback.block) {
-      var filtered = [];
+      var filtered = plain ? [] : new LSD.Array;
       var shifts = [];
       this.iterate(callback, function(result, value, index, state, old) {
         var shift = shifts[index], len = shifts.length;
@@ -163,7 +163,7 @@ LSD.Array.prototype = {
         }
         if (result && state) {
           if (old === false) filtered.splice(index - shift, 0, value);
-          else filtered[index - shift] = value;
+          else filtered.set ? filtered.set(index - shift, value) : filtered[index - shift] = value;
         }
         if (state ? result ? diff : !diff : diff) {
           for (var i = index, j = shifts.length; i < j; i++) 
@@ -175,6 +175,34 @@ LSD.Array.prototype = {
       })
       return filtered;
     } else return Array.prototype.filter.apply(this, arguments);
+  },
+  sort: function(callback, plain) {
+    if (!callback) callback = function(a, b) {
+      return a > b ? 1 : a < b ? - 1 : 0;
+    };
+    var sorted = plain ? [] : new LSD.Array;
+    var map = [];
+    this.watch(function(value, index, state, old) {
+      if (state) {
+        for (var i = sorted.length; i > 0; i--)
+          if (callback(sorted[i - 1], value) < 0) break;
+        if (old == null) {
+          sorted.splice(i, 0, value);
+        } else {
+          delete map[old];
+          sorted.set ? sorted.set(i, value) : sorted[i] = value;
+        }
+      } else {
+        i = map[index];
+        if (i != null) sorted.splice(i, 1);
+      }
+      if (!state || old == null) 
+        for (var j = 0; j < map.length; j++)
+          if (map[j] >= i) map[j] += (state ? 1 : -1);
+      if (state) map[index] = i;
+      else delete map[index];
+    });
+    return sorted;
   }
 };
 
