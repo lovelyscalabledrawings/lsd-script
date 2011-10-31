@@ -168,9 +168,7 @@ LSD.Array.prototype = {
         else filtered.set ? filtered.set(index - shift, value) : filtered[index - shift] = value;
       } else if (state ? (!result && old == null) : result) {
         filtered.splice(index - shift, 1);
-        console.log('removing at', index - shift, 'value is', value)
       }
-      console.log([result, value], [diff], [index, old, '~', [shift, index - shift]], state, shifts.slice(), filtered.slice())
     })
     return filtered;
   },
