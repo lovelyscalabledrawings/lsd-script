@@ -67,7 +67,8 @@ LSD.Script.Variable.prototype = {
     if (this.frozen) return;
     var old = this.value;
     this.value = this.process ? this.process(value) : value;
-    if (reset || typeof this.value == 'function' || old !== this.value) this.onSet(this.value);
+    if (reset || typeof this.value == 'function' || old !== this.value || (this.invalidator && (this.invalidator())))
+      this.onSet(this.value);
   },
   
   onSet: function(value) {
