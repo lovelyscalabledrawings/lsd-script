@@ -99,9 +99,16 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
       args.push(value);
       piped = value;
       if (this.evaluator) {
-        var result = this.evaluator.call(this, value, i == j - 1);
-        if (result != null) return result;
-        else if (result === null) return null;
+        var evaluated = this.evaluator.call(this, value, i == j - 1);
+        switch (evaluated) {
+          case true:
+            break;
+          case false:
+            return args;
+          default:
+            value = args[args.length - 1] = evaluated
+            return args;
+        }
       } else {
         if (arg.variable && value == null) return null;
       }
