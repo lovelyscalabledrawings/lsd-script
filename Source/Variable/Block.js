@@ -172,9 +172,17 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
 
 LSD.Function = function() {
   var args = Array.prototype.slice.call(arguments, 0);
+  for (var i = 0, j = args.length, source, output; i < j; i++) {
+    if (typeof args[i] != 'string') {
+      var object = args.splice(i--, 1)[0];
+      if (source == null) source = object;
+      else output = object;
+      j--;
+    }
+  }
   var body = LSD.Script.parse(args.pop());
   if (!body.push) body = [body];
-  return new LSD.Script.Block(body, null, null, args.map(function(arg) {
+  return new LSD.Script.Block(body, source, output, args.map(function(arg) {
     return {type: 'variable', name: arg}
   })).value
 };
