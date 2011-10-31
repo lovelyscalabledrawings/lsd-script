@@ -55,7 +55,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
   },
   
   execute: function(args, name) {
-    if (!args) args = this.evaluate(true);
+    args = this.evaluate(true);
     if (args === null) return null;
     if (!args.push) return args;
     if (name == null) name = this.name;
@@ -151,7 +151,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
   translate: function(arg, state, i, piped, origin) {
     if (!arg.variable && state) arg = LSD.Script.compile(arg, this.source);
     if (arg.variable) {
-      if (origin && !origin.local) {
+      if (origin && !origin.local && origin.variable) {
         var arg = origin;
         if (!arg.parents) arg.parents = [];
         var index = arg.parents.indexOf(this);
