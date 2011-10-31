@@ -81,6 +81,7 @@ LSD.Script.output = function(object, value) {
           else
             widget.attributes.set(object.name, value);
         } else {
+          object.ownerElement.setAttribute(object.name, value);
           object.ownerElement[object.name] = value;
         }
         break;
