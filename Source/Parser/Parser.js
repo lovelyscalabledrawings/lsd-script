@@ -75,7 +75,7 @@ LSD.Script.Parser.prototype.parse = LSD.Script.parse = function(value) {
         if (!block.locals.push) block.locals = [block.locals];
       }
       (args || scope).push(block);
-    } else if ((text = (found[names.dstring] || found[names.sstring]))) {
+    } else if ((text = (found[names.dstring] != null ? found[names.dstring] : found[names.sstring])) != null) {
       scope.push(text);
     } else if ((text = (found[names.number]))) {
       scope.push(parseFloat(text));
@@ -264,9 +264,9 @@ LSD.Script.Parser.rLine = /^([ \t]*)([^\n]*?)\s*(?:\|([^|]*?)\|\s*)?(?:\n|$)/gm
   .names = [                'block_arguments',                'block']
   
   ;(Parser.integer = x(/[-+]?\d+/))
-  ;(Parser['float'] = x(/[-+]?(?:\d+\.\d*|\d*\.\d+)/))
-  ;(Parser._length = x(['(', Parser['float'],  OR, Parser['integer'], ')', '(em|px|pt|%|fr|deg|(?=$|[^a-zA-Z0-9.]))']))
-  .names = [           'number',                                        'unit'];
+  ;(Parser._float = x(/[-+]?(?:\d+\.\d*|\d*\.\d+)/))
+  ;(Parser._length = x(['(', Parser._float,  OR, Parser.integer, ')', '(em|px|pt|%|fr|deg|(?=$|[^a-zA-Z0-9.]))']))
+  .names = [            'number',                                     'unit'];
 
   ;(Parser.comma = x(/\s*,\s*/, 'comma'))
   ;(Parser.whitespace = x(/\s+/, 'whitespace'))
