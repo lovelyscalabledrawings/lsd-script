@@ -40,23 +40,31 @@ LSD.Script.Interpolation = function(object, source, element) {
 LSD.Script.Interpolation.Attribute = function(name, value, source, attribute, forgiving) {
   var count = 0, last = 0, index, args;
   var regex = forgiving ? LSD.Layout.Interpolation.rForgivingBoundaries : LSD.Script.Interpolation.rBoundaries;
+  var invalidator = function() {
+    var val = owner.lsd ? name == 'value' ? owner.getValue() : owner.getAttribute(name) : attribute.value;
+    return val != fn.value;
+  };
   for (var match, compiled; match = regex.exec(value);) {
     index = match.index;
     if (!args) args = [];
-    if (index > last) args.push(value.substring(last, index));
+    if (index > last) 
+      args.push(value.substring(last, index));
     if (match[2] == "}" || match[2] == null) {
-      args.push(LSD.Script({
-        input: match[1],
-        source: source,
-        placeholder: match[0]
-      }));
+      var token = LSD.Script(match[1], source,  null, match[0]);
+      token.invalidator = invalidator;
+      args.push(token);
     }
     last = index + match[0].length;
   }
-  if (args && last < value.length) args.push(value.substring(last, value.length));
+  if (args && last < value.length) 
+    args.push(value.substring(last, value.length));
   if (args) {
     if (!attribute) attribute = source.getAttributeNode(name);
-    return new LSD.Script.Function(args, source, attribute, 'concat').attach();
+    var fn = new LSD.Script.Function(args, source, attribute, 'concat');
+    fn.invalidator = invalidator;
+    var owner = attribute.ownerElement;
+    fn.attach();
+    return fn;
   }
 };
 
