@@ -108,9 +108,9 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
     }
   },
   
-  attach: function() {
+  attach: function(origin) {
     if (this.invoked) {
-      this.fetch(true);
+      this.fetch(true, origin);
     } else {
       if (this.yields)
         for (var property in this.yields) {
@@ -119,10 +119,10 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
         }
     }
   },
-  detach: function() {
+  detach: function(origin) {
     delete this.value;
     if (this.invoked) {
-      this.fetch(false);
+      this.fetch(false, origin);
     } else {
       if (this.yields)
         for (var property in this.yields) {
