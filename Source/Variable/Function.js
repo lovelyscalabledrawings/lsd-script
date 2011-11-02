@@ -156,13 +156,14 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
         if (!arg.parents) arg.parents = [];
         var index = arg.parents.indexOf(this);
         if (state) {
+          if (i !== null) this.args[i] = arg;
           if (index == -1) arg.parents.push(this)
         } else {
           if (index != -1) arg.parents.splice(index, 1);
         }
       } else {
-        if (i !== null) this.args[i] = arg;
         if (state) {
+          if (i !== null) this.args[i] = arg;
           if (origin && origin.local) arg.local = true;
           this.translating = true;
           var pipable = (arg.variable && piped !== arg.piped); 
@@ -176,7 +177,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
           this.translating = false;
         } else {
           if (arg.parent == this) {
-            arg.detach();
+            arg.detach(origin);
             delete arg.parent;
           }
         }
