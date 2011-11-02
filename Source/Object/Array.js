@@ -35,7 +35,8 @@ LSD.Array = function(arg) {
       this.push(arg);
     }
   } else {
-    for (var i = 0; i < j; i++) this.push(arguments[i]);
+    for (var i = 0; i < j; i++) 
+      this.push(arguments[i]);
   }
 };
 
@@ -103,9 +104,12 @@ LSD.Array.prototype = {
       }
     this.length = length + shift;
     for (var i = this.length; i < length; i++) {
-      if (values.length < - shift)
+      if (values.length < - shift) {
         values.push(this[i])
-      this.set(i, this[i], false);
+        this.set(i, this[i], false);
+      } else {  
+        this.set(i, this[i], false, false);
+      }
     }
     return values;
   },
@@ -149,26 +153,33 @@ LSD.Array.prototype = {
   },
   filter: function(callback, plain) {
     var filtered = plain ? [] : new LSD.Array;
-    var shifts = [];
+    var shifts = [], spliced = 0;
     this.iterate(callback, function(result, value, index, state, old) {
       for (var i = shifts.length; i <= index + 1; i++) 
         shifts[i] = (shifts[i - 1]) || 0
       var shift = shifts[index];
-      if (state && old != null && shifts[old + 1] > shifts[old]) {
+      if (state && old != null && shifts[old + 1] > shifts[old])
         for (var i = old + 1, j = Math.max(shifts.length, index); i < j; i++)
           shifts[i]--;
-      } else {
+      else
         var diff = shifts[index + 1] - shift;
-      }
       if (state ? result ? diff : !diff : diff)
         for (var i = index + 1, j = shifts.length; i < j; i++) 
           shifts[i] += (state && !result ? 1 : -1);
       if (result && state) {
-        if (old === false) filtered.splice(index - shift, 0, value);
-        else filtered.set ? filtered.set(index - shift, value) : filtered[index - shift] = value;
-      } else if (state ? (!result && old == null) : result) {
+        var current = filtered[index - shift];
+        if (old !== false && ((!spliced || index - shift > 0 || (filtered[index - shift] != value && old > index)))) {
+          filtered.set ? filtered.set(index - shift, value) : filtered[index - shift] = value;
+        } else {
+          filtered.splice(index - shift, 0, value);
+        }
+        if (old != null && spliced > 0) spliced--;
+      } else if (state ? (!result && old == null) : result && (old === false || old == null)) {
         filtered.splice(index - shift, 1);
+        if (index - shift == 0 && old !== null) spliced++;
       }
+      if (callback.block) callback.block.update(filtered);
+      return filtered;
     })
     return filtered;
   },
@@ -197,8 +208,60 @@ LSD.Array.prototype = {
           if (map[j] >= i) map[j] += (state ? 1 : -1);
       if (state) map[index] = i;
       else delete map[index];
+      if (callback.block) callback.block.update(sorted);
+      return sorted;
     });
     return sorted;
+  },
+  every: function(callback) {
+    var count = 0;
+    var values = [];
+    this.iterate(callback, function(result, value, index, state, old) {
+      if (state) {
+        var previous = values[index];
+        values[index] = result;
+        if (previous != result) count += state && result ? previous == null ? 0 : -1 : 1;
+        if (old != null && old !== false) delete values[old];
+      } else {
+        if (!result) count--
+        values.splice(index, 1);
+      }
+      if (callback.block) callback.block.update(count === 0);
+      return count === 0;
+    });
+    return count === 0;
+  },
+  some: function(callback) {
+    var count = 0;
+    var values = [];
+    this.iterate(callback, function(result, value, index, state, old) {
+      if (state) {
+        var previous = values[index];
+        values[index] = result;
+        if (previous != result) count += state && result ? 1 : previous == null ? 0 : - 1;
+        if (old != null && old !== false) delete values[old];
+      } else if (old !== false) {
+        if (result) count--
+        values.splice(index, 1);
+      }
+      if (callback.block) callback.block.update(count > 0);
+      return count > 0;
+    });
+    return count > 0;
+  },
+  map: function(callback) {
+    var values = [];
+    this.iterate(callback, function(result, value, index, state, old) {
+      if (state) {
+        var previous = values[index];
+        values[index] = result;
+      } else {
+        values.splice(index, 1);
+      }
+      if (callback.block) callback.block.update(values);
+      return values;
+    }); 
+    return values;
   }
 };
 
