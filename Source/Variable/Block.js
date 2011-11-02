@@ -167,6 +167,19 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
     if (this.yielder && this.invoked && this.invoked !== true)
       this.yielder(value, this.invoked[0], this.invoked[1], this.invoked[2], this.invoked[3]);
     if (this.parent && !this.invoked) this.parent.set();
+  },
+  
+  update: function(value) {
+    if (this.parent) {
+      this.parent.value = value;
+      if (this.parent.parent) this.parent.parent.set();
+    }
+  },
+  
+  unuse: function(origin, arg) {
+    //var paths = [];
+    //if (!arg) arg = this;
+    //for (var i = 0, j = this.args.length; i < j;)
   }
 });
 
