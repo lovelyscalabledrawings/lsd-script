@@ -151,9 +151,9 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
   translate: function(arg, state, i, piped, origin) {
     if (!arg.variable && state) arg = LSD.Script.compile(arg, this.source);
     if (arg.variable) {
+      if (!arg.parents) arg.parents = [];
       if (origin && !origin.local && origin.variable) {
         var arg = origin;
-        if (!arg.parents) arg.parents = [];
         var index = arg.parents.indexOf(this);
         if (state) {
           if (i !== null) this.args[i] = arg;
@@ -168,17 +168,18 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
           this.translating = true;
           var pipable = (arg.variable && piped !== arg.piped); 
           if (pipable) arg.piped = piped;
-          if (arg.parent != this || pipable) {
-            arg.parent = this;
-            if (this.onEvaluate) arg.onEvaluate = this.onEvaluate;
-            arg.attach(origin);
-            if (this.onEvaluate) delete arg.onEvaluate;
+          if (arg.parents.indexOf(this) == -1 || pipable) {
+            arg.parents.push(this);
+            if (!arg.attached || pipable) arg.attach(origin);
           }
           this.translating = false;
         } else {
-          if (arg.parent == this) {
-            arg.detach(origin);
-            delete arg.parent;
+          if (arg.parents) {
+            var index = arg.parents.indexOf(this);
+            if (index > -1) {
+              arg.parents.splice(index, 1);
+              if (arg.parents.length == 0 && arg.attached) arg.detach(origin)
+            };
           }
         }
       }

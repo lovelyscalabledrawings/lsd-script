@@ -71,14 +71,13 @@ LSD.Script.Variable.prototype = {
       this.onSet(this.value);
   },
   
-  onSet: function(value) {
+  onSet: function(value, output) {
     if (value == null && this.placeholder) value = this.placeholder;
-    if (this.output) this.update(value);
+    if (this.output && output !== false) this.update(value);
     if (this.attached) {
-      if (this.parent && !this.parent.translating) this.parent.set();
       if (this.parents)
         for (var i = 0, parent; parent = this.parents[i++];) {
-          if (!parent.translating) parent.set();
+          if (!parent.translating && parent.attached) parent.set();
         }
     }
   },

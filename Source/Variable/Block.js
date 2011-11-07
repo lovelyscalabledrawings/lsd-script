@@ -144,26 +144,27 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
         for (var local, i = 0; local = this.locals[i]; i++)
           this.variables.unset(local.name, args[i]);
     }
-    if (this.onEvaluate) delete this.onEvaluate;
     return result;
   },
   
   process: function(value) {
-    return this.yielder ? this.execute() : this.callback;
+    return this.yielded ? this.execute() : this.callback;
   },
   
   onSet: function(value) {
     if (this.output) this.update(value);
     if (this.yielder && this.invoked && this.invoked !== true)
       this.yielder(value, this.invoked[0], this.invoked[1], this.invoked[2], this.invoked[3]);
-    if (this.parent && !this.invoked) this.parent.set();
+    return LSD.Script.Variable.prototype.onSet.call(this, value, false);
   },
   
   update: function(value) {
-    if (this.parent) {
-      this.parent.value = value;
-      if (this.parent.parent) this.parent.parent.set();
-    }
+    if (this.parents)
+      for (var i = 0, parent; parent = this.parents[i++];) {
+        parent.value = value;
+        if (!parent.translating) 
+          LSD.Script.Variable.prototype.onSet.call(parent, null, false);
+      }
   },
   
   unuse: function(origin, arg) {
