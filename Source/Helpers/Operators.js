@@ -63,6 +63,10 @@ LSD.Script.Evaluators = {
   }
 };
 
+LSD.Script.Keywords = {
+  'if': true
+};
+
 /*
   All of the operators above except assignment borrow
   javascript capabilities to apply operators on any arguments.
