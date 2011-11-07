@@ -40,20 +40,9 @@ LSD.Script.Block = function(input, source, output, locals, origin) {
     this.source = this; 
   }
   this.origin = origin;
-  if (!origin) {
-    this.onEvaluate = function(token) {
-      if (token.type == 'variable')
-        if (locals)
-          for (var i = 0, j = locals.length; i < j; i++) {
-            var dot = token.input.indexOf('.');
-            var name = dot > -1 ? token.input.substring(0, dot) : token.input;
-            if (locals[i].name == name)
-              for (var parent = token; parent; parent = parent.parent)
-                if (parent == this) break;
-                else parent.local = true;
-          }
-    }.bind(this)
-  }
+  
+  if (!origin && locals) 
+    LSD.Script.Block.findLocalVariables(this, locals)
 }
 
 LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
