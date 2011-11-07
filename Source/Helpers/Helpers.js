@@ -69,7 +69,9 @@ Object.append(LSD.Script.Helpers, {
   },
   
   'if': function(condition, block) {
-    return block.call(block, condition ? 'yield' : 'unyield')
+    var result = block.call(block, condition ? 'yield' : 'unyield')
+    if (typeof result == 'undefined') result = null;
+    return result;
   }
 
 });
