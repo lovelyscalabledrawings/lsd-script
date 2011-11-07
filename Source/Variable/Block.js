@@ -80,11 +80,12 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
         if (callback) callback.block = block;
         return block;
       case 'unyield':    
-        var block = this.yields[index];
+        var block = this.yields && this.yields[index];
         if (callback) callback.call(this, block ? block.value : this.values ? this.values[index] : null, args[0], args[1], args[2], args[3]);
         if (block) {
           if (callback && block.invoked) block.invoke(null, false);
           delete block.yielder;
+          delete block.yielded;
           block.detach();
           if (callback) {
             delete callback.block;
