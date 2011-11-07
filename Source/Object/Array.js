@@ -217,22 +217,25 @@ LSD.Array.prototype = {
     return sorted;
   },
   every: function(callback) {
-    var count = 0;
+    if (callback.watcher) return callback.watcher.result === 0;
     var values = [];
+    var that = this;
     this.iterate(callback, function(result, value, index, state, old) {
+      if (callback.watcher.result == null) callback.watcher.result = 0;
       if (state) {
         var previous = values[index];
         values[index] = result;
-        if (previous != result) count += state && result ? previous == null ? 0 : -1 : 1;
+        if (previous != result) 
+          callback.watcher.result += (state && result ? previous == null ? 0 : -1 : 1);
         if (old != null && old !== false) delete values[old];
       } else {
-        if (!result) count--
+        if (!result) callback.watcher.result--
         values.splice(index, 1);
       }
-      if (callback.block) callback.block.update(count === 0);
-      return count === 0;
+      if (callback.block) callback.block.update(callback.watcher.result === 0);
+      return callback.watcher.result === 0;
     });
-    return count === 0;
+    return this.length === 0 || callback.watcher.result === 0;
   },
   some: function(callback) {
     var count = 0;
