@@ -81,8 +81,8 @@ LSD.Object.prototype = {
       var watched = this._watched;
       if (watched && (watched = watched[key]))
         for (var i = 0, fn; fn = watched[i++];)
-          if (fn.call) fn(null, old);
-          else LSD.Object.callback(this, fn, key, null, old, memo);
+          if (fn.call) fn(undefined, old);
+          else LSD.Object.callback(this, fn, key, undefined, old, memo);
       delete this[key];
       return true;
     }
@@ -197,8 +197,8 @@ LSD.Object.prototype = {
         } else if (match != callback && fn != callback) continue;
         watched.splice(i, 1);
         if (value != null) {
-          if (callback.call) fn(null, value);
-          else LSD.Object.callback(this, fn, key, null, value);
+          if (callback.call) fn(undefined, value);
+          else LSD.Object.callback(this, fn, key, undefined, value);
         }
         break;
       }
