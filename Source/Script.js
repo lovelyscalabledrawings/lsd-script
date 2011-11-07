@@ -43,17 +43,19 @@ provides:
   around and used to retrieve current expression value.
 */
 
-LSD.Script = function(input, source, output, placeholder) {
+LSD.Script = function(input, source, output) {
   if (arguments.length == 1 && input && typeof input == 'object') {
     var options = input;
     input = options.input;
     output = options.output;
     source = options.source;
-    placeholder = options.placeholder;
   }
   var result = LSD.Script.compile(input, source, output, true);
   if (result.variable) {
-    if (placeholder) result.placeholder = placeholder;
+    if (options) {
+      if (options.placeholder) result.placeholder = options.placeholder;
+      if (options.local) result.local = true;
+    }
     if (source) result.attach();
   } else {
     if (output) LSD.Script.output(output, result);
