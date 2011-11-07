@@ -183,6 +183,33 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
   }
 });
 
+LSD.Script.Block.findLocalVariables = function(block, locals) {
+  var map = {};
+  for (var i = 0, j = locals.length; i < j; i++)
+    map[locals[i].name] = true;
+  for (var item, stack = block.input.slice(0); item = stack.pop();) {
+    if (item.type == 'variable') {
+      var name = item.name;
+      var dot = name.indexOf('.');
+      if (dot > -1) name = name.substring(0, dot);
+      if (map[name])
+        for (var parent = item; parent; parent = parent.parent)
+          if (parent == block.input) break;
+          else parent.local = true;
+    } else {
+      if (item.name == '=' || item.name == 'define') 
+        map[item.value[0].name] = true;
+      if (item.value)
+        for (var k = 0, l = item.value.length, value; k < l; k++) {
+          var value = item.value[k];
+          if (!value.hasOwnProperty('type')) continue;
+          value.parent = item;
+          stack.push(value);
+        }
+    }
+  }
+}
+
 LSD.Function = function() {
   var args = Array.prototype.slice.call(arguments, 0);
   for (var i = 0, j = args.length, source, output; i < j; i++) {
