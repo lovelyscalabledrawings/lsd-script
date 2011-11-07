@@ -127,7 +127,7 @@ LSD.Array.prototype = {
       callback.call(this, this[i], i, true);
     this.addEvent('change', callback);
   },
-  unwatch: function() {
+  unwatch: function(callback) {
     for (var i = 0, j = this.length >>> 0; i < j; i++)
       callback.call(this, this[i], i, false);
     this.removeEvent('change', callback);
