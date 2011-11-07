@@ -72,6 +72,7 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
         if (old != null) this.yields[index] = block;
         if (!block) block = this.yields[index] = new LSD.Script.Block(this.input, this.source, null, this.locals, yielded);
         var invoked = block.invoked;
+        block.yielded = true;
         block.yielder = callback;
         block.invoke(args, true, !!invoked);
         if (invoked && block.locals)
