@@ -230,6 +230,12 @@ LSD.Script.Parser.multiline = function(source) {
 
 LSD.Script.Parser.prototype.compile = LSD.Script.compile = function(object, source, output, parse) {
   if (parse) object = LSD.Script.parse(object)
+  var variable = LSD.Script.materialize(object, source, output);
+  if (object.local) variable.local = true;
+  return variable;
+};
+
+LSD.Script.Parser.prototype.materialize = LSD.Script.materialize = function(object, source, output) {
   switch (object.type) {
     case 'variable':
       return new LSD.Script.Variable(object.name, source, output);
@@ -245,7 +251,7 @@ LSD.Script.Parser.prototype.compile = LSD.Script.compile = function(object, sour
       else
         return object;
   }
-};
+}
 
 LSD.Script.Parser.rVariable = /^[a-z0-9][a-z_\-0-9.\[\]]*$/ig;
 LSD.Script.Parser.Combinators = Array.object('+', '>', '!+', '++', '!~', '~~', '&', '&&', '$', '$$');
