@@ -95,7 +95,6 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
         value = arg.name;
       } else {
         arg = this.translate(arg, state, i, piped, this.origin ? this.origin.args[i] : null);
-        if (arg.variable && this.onEvaluate) this.onEvaluate(arg);
         value = arg.variable ? arg.value : arg;
       }
       args.push(value);
