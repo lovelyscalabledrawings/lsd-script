@@ -77,8 +77,8 @@ LSD.Script.Selector = function(input, source, output) {
     }
   }.bind(this));
   this.collection = [];
-  if (source && source.block) source = this.source = source.parentNode;
-  if (!source || !source.lsd) throw "Selector should be applied on widgets";
+  this.source = this.getContext();
+  if (!this.source) throw "Selector should be applied on widgets";
 };
 
 LSD.Script.Selector.prototype = Object.append({}, LSD.Script.Variable.prototype, {

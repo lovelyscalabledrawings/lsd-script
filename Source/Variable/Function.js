@@ -139,16 +139,6 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
     return args;
   },
   
-  getContext: function() {
-    for (var scope = this.source, context; scope; scope = scope.parentScope)
-      if (scope.nodeType) {
-        context = scope;
-        break;
-      }
-    this.context = context || false;
-    return this.context;
-  },
-  
   translate: function(arg, state, i, piped, origin) {
     if (!arg.variable && state) arg = LSD.Script.compile(arg, this.source);
     if (arg.variable) {

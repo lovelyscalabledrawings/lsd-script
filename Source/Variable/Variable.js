@@ -107,5 +107,14 @@ LSD.Script.Variable.prototype = {
     var output = this.output;
     if (!output) return;
     return LSD.Script.output(this.output, value); 
-  }     
+  },
+  
+  getContext: function() {
+    for (var scope = this.source, context; scope; scope = scope.parentScope) {
+      context = (scope.nodeType && scope.nodeType != 11) ? scope : scope.widget;
+      if (context) break;
+    }
+    this.context = context || false;
+    return this.context;
+  } 
 };
