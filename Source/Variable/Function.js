@@ -56,7 +56,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
   
   execute: function(args, name) {
     args = this.evaluate(true);
-    if (args === null) return null;
+    if (typeof args == 'undefined') return;
     if (!args.push) return args;
     if (name == null) name = this.name;
     if (name) {
