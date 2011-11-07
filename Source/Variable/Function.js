@@ -106,13 +106,13 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
           case true:
             break;
           case false:
-            return args;
+            return args[args.length - 1];
           default:
-            value = args[args.length - 1] = evaluated
+            args[args.length - 1] = evaluated
             return args;
         }
       } else {
-        if (arg.variable && value == null) return null;
+        if (arg.variable && typeof value == 'undefined' && !LSD.Script.Keywords[this.name]) return;
       }
     }
     if (this.context !== false) this.context = this.getContext();
