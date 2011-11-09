@@ -135,7 +135,9 @@ LSD.Object.prototype = {
     var storage = this._events;
     if (storage) {
       var collection = storage[key];
-      if (collection) for (var i = 0, fn; fn = collection[i++];) {
+      if (collection) for (var i = 0, j = collection.length, fn; i < j; i++) {
+        var fn = collection[i];
+        if (!fn) continue;
         var result = fn(a, b, c, d, e);
         if (result != null) b = result;
       }
