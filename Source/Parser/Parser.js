@@ -21,8 +21,10 @@ provides:
 ...
 */
 
-LSD.Script.Parser = function() {};
-LSD.Script.Parser.prototype.parse = LSD.Script.parse = function(value) {
+!function(exports) {
+
+var Parser = LSD.Script.Parser = function() {};
+Parser.prototype.parse = LSD.Script.parse = function(value) {
   if (value.indexOf('\n') > -1) return LSD.Script.Parser.multiline(value);
   if (LSD.Script.parsed) {
     var cached = LSD.Script.parsed[name];
@@ -75,6 +77,18 @@ LSD.Script.Parser.prototype.parse = LSD.Script.parse = function(value) {
         if (!block.locals.push) block.locals = [block.locals];
       }
       (args || scope).push(block);
+    } else if ((text = found[names.index])) {
+      if (selector) {
+        selector.value += found[0];
+        text = null;
+      } else {
+        var left = scope.pop();
+        if (typeof left == 'undefined') throw "[] object index should come after an object"
+        var body = LSD.Script.parse(text);
+        if (!body.push) body = [body];
+        body.unshift(left)
+        scope.push({type: 'function', name: '[]', value: body});
+      }
     } else if ((text = (found[names.dstring] != null ? found[names.dstring] : found[names.sstring])) != null) {
       scope.push(text);
     } else if ((text = (found[names.number]))) {
@@ -165,7 +179,7 @@ LSD.Script.Parser.prototype.parse = LSD.Script.parse = function(value) {
   return (LSD.Script.parsed[value] = (result.length == 1 ? result[0] : result));
 };
 
-LSD.Script.Parser.multiline = function(source) {
+Parser.multiline = function(source) {
   for (var match, lines = [], regex = LSD.Script.Parser.rLine; match = regex.exec(source);) 
     if (match[2] !== "") lines.push(match.splice(1));
   var args, baseline, blocks = [], indent, level = 0;
@@ -228,14 +242,14 @@ LSD.Script.Parser.multiline = function(source) {
   return results;
 };
 
-LSD.Script.Parser.prototype.compile = LSD.Script.compile = function(object, source, output, parse) {
+Parser.prototype.compile = LSD.Script.compile = function(object, source, output, parse) {
   if (parse) object = LSD.Script.parse(object)
   var variable = LSD.Script.materialize(object, source, output);
   if (object.local) variable.local = true;
   return variable;
 };
 
-LSD.Script.Parser.prototype.materialize = LSD.Script.materialize = function(object, source, output) {
+Parser.prototype.materialize = LSD.Script.materialize = function(object, source, output) {
   switch (object.type) {
     case 'variable':
       return new LSD.Script.Variable(object.name, source, output);
@@ -253,53 +267,57 @@ LSD.Script.Parser.prototype.materialize = LSD.Script.materialize = function(obje
   }
 }
 
-LSD.Script.Parser.rVariable = /^[a-z0-9][a-z_\-0-9.\[\]]*$/ig;
-LSD.Script.Parser.Combinators = Array.object('+', '>', '!+', '++', '!~', '~~', '&', '&&', '$', '$$');
-LSD.Script.Parser.rLine = /^([ \t]*)([^\n]*?)\s*(?:\|([^|]*?)\|\s*)?(?:\n|$)/gm
+Parser.rVariable = /^[a-z0-9][a-z_\-0-9.\[\]]*$/ig;
+Parser.Combinators = Array.object('+', '>', '!+', '++', '!~', '~~', '&', '&&', '$', '$$');
+Parser.rLine = /^([ \t]*)([^\n]*?)\s*(?:\|([^|]*?)\|\s*)?(?:\n|$)/gm
 
-!function(Parser) {
-  var x = combineRegExp
-  var OR = '|'
-  var rRound = "(?:[^()]|\\((?:[^()]|\\((?:[^()]|\\((?:[^()]|\\([^()]*\\))*\\))*\\))*\\))";
-  var rCurly = "(?:[^{}]|\\{(?:[^{}]|\\{(?:[^{}]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})*\\})*\\})";
+var x = exports.combineRegExp
+var OR = '|'
+var rRound = "(?:[^()]|\\((?:[^()]|\\((?:[^()]|\\((?:[^()]|\\([^()]*\\))*\\))*\\))*\\))";
+var rCurly = "(?:[^{}]|\\{(?:[^{}]|\\{(?:[^{}]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})*\\})*\\})";
+var rSquare = "(?:[^\\[\\]]|\\[(?:[^\\[\\]]|\\[(?:[^\\[\\]]|\\[(?:[^\\[\\]]|\\[[^\\[\\]]*\\])*\\])*\\])*\\])";
 
-  ;(Parser.fn = x("(?:(\\.)\\s*)?([-_a-zA-Z0-9]*)\\s*\\((" + rRound + "*)\\)"))
-  .names = [     'fn_tail',    'fn',                  'fn_arguments']
+;(Parser.fn = x("(?:(\\.)\\s*)?([-_a-zA-Z0-9]*)\\s*\\((" + rRound + "*)\\)"))
+.names = [     'fn_tail',    'fn',                  'fn_arguments']
 
-  ;(Parser.block = x("\\s*\\{\\s*(?:\\|\\s*([^|]*)\\|\\s*)?\\s*((?:"+rCurly+")*)\\s*\\}"))
-  .names = [                'block_arguments',                'block']
-  
-  ;(Parser.integer = x(/[-+]?\d+/))
-  ;(Parser._float = x(/[-+]?(?:\d+\.\d*|\d*\.\d+)/))
-  ;(Parser._length = x(['(', Parser._float,  OR, Parser.integer, ')', '(em|px|pt|%|fr|deg|(?=$|[^a-zA-Z0-9.]))']))
-  .names = [            'number',                                     'unit'];
+;(Parser.block = x("\\s*\\{\\s*(?:\\|\\s*([^|]*)\\|\\s*)?\\s*((?:"+rCurly+")*)\\s*\\}"))
+.names = [                'block_arguments',                'block']
 
-  ;(Parser.comma = x(/\s*,\s*/, 'comma'))
-  ;(Parser.whitespace = x(/\s+/, 'whitespace'))
-  ;(Parser.operator = x(/[-+]|[\/%^~=><*\^!|&$]+/, 'operator'))
+;(Parser.integer = x(/[-+]?\d+/))
+;(Parser._float = x(/[-+]?(?:\d+\.\d*|\d*\.\d+)/))
+;(Parser._length = x(['(', Parser._float,  OR, Parser.integer, ')', '(em|px|pt|%|fr|deg|(?=$|[^a-zA-Z0-9.]))']))
+.names = [            'number',                                     'unit']
 
-  ;(Parser.stringDouble = x(/"((?:[^"]|\\")*)"/)).names = ['dstring']
-  ;(Parser.stringSingle = x(/'((?:[^']|\\')*)'/)).names = ['sstring']
-  ;(Parser.string = x([Parser.stringSingle, OR, Parser.stringDouble]))
-  ;(Parser.token = x(/(?:(\.)\s*)?([^$,\s\/().]+)/)).names = ['token_tail', 'token']
+;(Parser.comma = x(/\s*,\s*/, 'comma'))
+;(Parser.whitespace = x(/\s+/, 'whitespace'))
+;(Parser.operator = x(/[-+]|[\/%^~=><*\^!|&$]+/, 'operator'))
 
-  Parser.tokenize = x
-  (
-    [ x(Parser.fn),
-    , OR
-    , x(Parser.block),
-    , OR
-    , x(Parser.comma)
-    , OR
-    , x(Parser.whitespace)
-    , OR
-    , x(Parser.string)
-    , OR
-    , x(Parser._length)
-    , OR
-    , x(Parser.operator)
-    , OR
-    , x(Parser.token)
-    ]
-  )
-}(LSD.Script.Parser);
+;(Parser.index = x("\\[\\s*((?:" + rSquare + ")*)\\s*\\]")).names = ['index']
+;(Parser.stringDouble = x(/"((?:[^"]|\\")*)"/)).names = ['dstring']
+;(Parser.stringSingle = x(/'((?:[^']|\\')*)'/)).names = ['sstring']
+;(Parser.string = x([Parser.stringSingle, OR, Parser.stringDouble]))
+;(Parser.token = x(/(?:(\.)\s*)?([^$,\s\/().\[\]]+)/)).names = ['token_tail', 'token']
+
+Parser.tokenize = x
+(
+  [ x(Parser.fn)
+  , OR
+  , x(Parser.block)
+  , OR
+  , x(Parser.index)
+  , OR
+  , x(Parser.comma)
+  , OR
+  , x(Parser.whitespace)
+  , OR
+  , x(Parser.string)
+  , OR
+  , x(Parser._length)
+  , OR
+  , x(Parser.operator)
+  , OR
+  , x(Parser.token)
+  ]
+)
+
+}(typeof exports != 'undefined' ? exports : this);
