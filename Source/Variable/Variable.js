@@ -95,7 +95,7 @@ LSD.Script.Variable.prototype = {
     this.attached = state;
     if (!this.setter) this.setter = this.set.bind(this);
     if (this.source != null)
-      (this.source.call ? this.source : this.request).call(this, this.input, this.setter, this.source, state);
+      this[this.source.call ? 'source' : 'request'](this.input, this.setter, this.source, state);
     return this;
   },
   
