@@ -86,7 +86,7 @@ LSD.Script.Selector.prototype = Object.append({}, LSD.Script.Variable.prototype,
   
   request: function(input, callback, source, state) {
     if (this.element) {
-      Slick.search(this.element, input).each(callback);
+      LSD.Slick.search(this.element, input).each(callback);
     } else {
       this.source[state ? 'watch' : 'unwatch'](input, callback);
     }
