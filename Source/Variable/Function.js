@@ -94,7 +94,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
         if (!arg.type || arg.type != 'variable') throw "Unexpected token, argument must be a variable name";
         value = arg.name;
       } else {
-        arg = this.translate(arg, state, i, piped, this.origin ? this.origin.args[i] : null);
+        arg = this.args[i] = this.translate(arg, state, i, piped, this.origin ? this.origin.args[i] : null);
         value = arg.variable ? arg.value : arg;
       }
       args.push(value);
