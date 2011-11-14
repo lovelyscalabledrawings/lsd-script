@@ -11,6 +11,7 @@ authors: Yaroslaff Fedin
  
 requires:
   - LSD.Script
+  - String.Inflections/String.pluralize
   
 provides:
   - LSD.Script.Functions
@@ -72,6 +73,12 @@ Object.append(LSD.Script.Helpers, {
     var result = block.call(block, condition ? 'yield' : 'unyield')
     if (typeof result == 'undefined') result = null;
     return result;
+  },
+  
+  '[]': function(object, property) {
+  },
+  
+  'un[]': function(object, property) {
   }
 
 });
