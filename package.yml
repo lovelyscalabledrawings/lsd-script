@@ -6,12 +6,13 @@ license: Public domain, http://unlicense.org
 copyright: Yaroslaff Fedin
 author: inviz
 category: Script
-current: 0.2
+current: 0.3
 tags: [aop, reactive, script]
 sources:
   - Source/Script.js
   - Source/Object/Object.js
   - Source/Object/Object.Stack.js
+  - Source/Object/Object.Params.js
   - Source/Object/Struct.js
   - Source/Object/Array.js
   - Source/Object/Scope.js

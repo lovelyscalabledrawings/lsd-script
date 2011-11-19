@@ -53,9 +53,11 @@ LSD.Script.Helpers[','] = function() {
 */
 LSD.Script.Evaluators = {
   ',': function(expression) {
-    return expression == null ? null : true;
+    return (expression != null) || null;
   },
   '||': function(expression) {
+    if (expression != null && expression == false && expression.failure)
+      return expression;
     return !expression;
   },
   '&&': function(expression) {

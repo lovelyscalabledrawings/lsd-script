@@ -46,8 +46,10 @@ LSD.Array.prototype = {
       arg = arguments[i];
       this.set(this.length >>> 0, arg);
     }
+    return this.length;
   },
   set: function(index, value, state, old) {
+    index = parseInt(index);
     if (state !== false) {
       this[index] = value;
       if (index + 1 > this.length) this.length = index + 1;

@@ -61,10 +61,10 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
     if (name == null) name = this.name;
     if (name) {
       var method = LSD.Script.Scope.lookup(this.source, name, args[0])
-      if (method) {
-        if (method === true) return args[0][name].apply(args[0], Array.prototype.slice.call(args, 1)) 
-        else return method.apply(this, args)
-      }
+      if (method === true) 
+        return args[0][name].apply(args[0], Array.prototype.slice.call(args, 1)) 
+      else if (method)
+        return method.apply(this, args)
     } else {
       return args[0];
     }
@@ -96,6 +96,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
       } else {
         arg = this.args[i] = this.translate(arg, state, i, piped, this.origin ? this.origin.args[i] : null);
         value = arg.variable ? arg.value : arg;
+        if (value && value.chain && value.callChain) return args;
       }
       args.push(value);
       piped = value;
@@ -104,11 +105,16 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
         switch (evaluated) {
           case true:
             break;
-          case false:
+          case false:  
             return args[args.length - 1];
           default:
-            args[args.length - 1] = evaluated
-            return args;
+            if (evaluated != null && evaluated == false && evaluated.failure) {
+              args[args.length - 1] = piped = evaluated.failure;
+              break;
+            } else { 
+              args[args.length - 1] = evaluated
+              return args;
+            }
         }
       } else {
         if (arg.variable && typeof value == 'undefined' && !LSD.Script.Keywords[this.name]) return;
@@ -158,9 +164,10 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
           if (origin && origin.local) arg.local = true;
           this.translating = true;
           var pipable = (arg.variable && piped !== arg.piped); 
-          if (pipable) arg.piped = piped;
-          if (arg.parents.indexOf(this) == -1 || pipable) {
-            arg.parents.push(this);
+          if (pipable) arg.prepiped = arg.piped = piped;
+          var attachment = arg.parents.indexOf(this) > -1;
+          if (!attachment || pipable) {
+            if (!attachment) arg.parents.push(this);
             if (!arg.attached || pipable) arg.attach(origin);
           }
           this.translating = false;
@@ -178,8 +185,47 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
     return arg;
   },
   
+  onSuccess: function(value) {
+    this.value = value;
+    this.onSet(this.value);
+  },
+  
+  onFailure: function(value) {
+    this.value = new Boolean(false);
+    this.value.failure = value;
+    this.onSet(this.value);
+  },
+  
   process: function(args) {
     this.executed = args;
-    return this.execute(args); 
+    var value = this.execute(args);
+    if (value && value.chain && value.callChain && !value.chained) {
+      var self = this, complete = function() {
+        delete value.chained;
+        self.onSuccess.apply(self, arguments);
+        if (value.removeEvents) value.removeEvents(events);
+      }
+      if (value.addEvents) {
+        var events = {
+          complete: complete,
+          cancel: function() {
+            delete value.chained;
+            self.onFailure.apply(self, arguments);
+            value.removeEvents(events);
+          }
+        }
+        // If it may fail, we should not simply wait for completion
+        if (value.onFailure) {
+          events.failure = events.cancel;
+          events.success = events.complete;
+          delete events.complete;
+        }
+        value.addEvents(events);
+      } else {
+        value.chain(complete)
+      }
+      value.chained = true;
+    }
+    return value;
   }
 });

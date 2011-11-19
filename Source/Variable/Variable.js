@@ -92,10 +92,12 @@ LSD.Script.Variable.prototype = {
   },
   
   fetch: function(state, origin) {
-    this.attached = state;
-    if (!this.setter) this.setter = this.set.bind(this);
-    if (this.source != null)
-      this[this.source.call ? 'source' : 'request'](this.input, this.setter, this.source, state);
+    if (this.attached ^ state) {
+      this.attached = state;
+      if (!this.setter) this.setter = this.set.bind(this);
+      if (this.source != null)
+        this[this.source.call ? 'source' : 'request'](this.input, this.setter, this.source, state);
+    }
     return this;
   },
   
