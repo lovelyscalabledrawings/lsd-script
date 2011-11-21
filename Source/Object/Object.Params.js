@@ -18,11 +18,13 @@ provides:
 ...
 */
 
-LSD.Object.Params = function(object) {
-  if (object) for (var key in object) this.set(key, object[key]);
+LSD.Object.Params = function() {
+  LSD.Object.apply(this, arguments);
 };
 
-LSD.Object.Params.prototype = Object.append(new LSD.Object, {
+LSD.Object.Params.prototype = {
+  _constructor: LSD.Object.Params,
+
   set: function(key, value) {
     for (var regex = LSD.Object.Params.rNameParser, matched = [], match; match = regex.exec(key);)
       matched.push(match);
@@ -61,7 +63,27 @@ LSD.Object.Params.prototype = Object.append(new LSD.Object, {
         else LSD.Object.prototype.unset.call(this, name, value);
       } else object = object[name];
     }
+  },
+  
+  get: function(key, value) {
+    for (var regex = LSD.Object.Params.rNameParser, matched = [], match; match = regex.exec(key);)
+      matched.push(match);
+    for (var i = 0, next, array, index, name, object = this; match = matched[i++];) {
+      name = match[1] == null ? match[2] : match[1];
+      if (name === '') name = object.length - 1;
+      if (i == matched.length) {
+        return object[name];
+      } else if ((object = object[name]) == null) {
+        return;
+      }
+    }
   }
-});
+};
 
 LSD.Object.Params.rNameParser = /(^[^\[]+)|\[([^\]]*)\]/g;
+
+!function() {
+  for (var method in LSD.Object.prototype)
+    if (!LSD.Object.Params.prototype[method])
+      LSD.Object.Params.prototype[method] = LSD.Object.prototype[method];
+}();

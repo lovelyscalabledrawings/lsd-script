@@ -41,6 +41,8 @@ LSD.Array = function(arg) {
 };
 
 LSD.Array.prototype = {
+  _constructor: LSD.Array,
+  
   push: function() {
     for (var i = 0, j = arguments.length, length, arg; i < j; i++) {
       arg = arguments[i];
@@ -48,6 +50,7 @@ LSD.Array.prototype = {
     }
     return this.length;
   },
+  
   set: function(index, value, state, old) {
     index = parseInt(index);
     if (state !== false) {
@@ -62,6 +65,7 @@ LSD.Array.prototype = {
       this.fireEvent(state === false ? 'remove' : 'add', value, index, old);
     return result;
   },
+  
   indexOf: function(object, from) {
     var id = typeof object == 'object' ? LSD.getID(object) : object;
     var length = this.length >>> 0;
@@ -71,6 +75,7 @@ LSD.Array.prototype = {
     }
     return -1;
   },
+  
   splice: function(index, offset) {
     var args = Array.prototype.slice.call(arguments, 2);
     var arity = args.length, length = this.length;
@@ -115,28 +120,37 @@ LSD.Array.prototype = {
     }
     return values;
   },
+  
   pop: function() {
     return this.splice(-1, 1)[0];
   },
+  
   shift: function() {
     return this.splice(0, 1)[0]
   },
+  
   unshift: function() {
     return this.splice.apply(this, [0, 0].concat(Array.prototype.slice.call(arguments, 0)))
   },
+  
   watch: function(callback) {
     for (var i = 0, j = this.length >>> 0; i < j; i++)
       callback.call(this, this[i], i, true);
     this.addEvent('change', callback);
   },
+  
   unwatch: function(callback) {
     for (var i = 0, j = this.length >>> 0; i < j; i++)
       callback.call(this, this[i], i, false);
     this.removeEvent('change', callback);
   },
+  
   fireEvent: LSD.Object.prototype.fireEvent,
+  
   removeEvent: LSD.Object.prototype.removeEvent,
+  
   addEvent: LSD.Object.prototype.addEvent,
+  
   iterate: function(block, callback, state) {
     if (state !== false) {
       block.watcher = function(value, index, substate, old) {
@@ -150,12 +164,15 @@ LSD.Array.prototype = {
     }
     this[state !== false ? 'watch' : 'unwatch'](block.watcher);
   },
+  
   uneach: function(block) {
     return this.iterate(block, null, false);
   },
+  
   each: function(callback) {
     return this.iterate(callback)
   },
+  
   filter: function(callback, plain) {
     var filtered = plain ? [] : new LSD.Array;
     var shifts = [], spliced = 0;
@@ -188,6 +205,7 @@ LSD.Array.prototype = {
     })
     return filtered;
   },
+  
   sort: function(callback, plain) {
     if (!callback) callback = function(a, b) {
       return a > b ? 1 : a < b ? - 1 : 0;
@@ -218,6 +236,7 @@ LSD.Array.prototype = {
     });
     return sorted;
   },
+  
   every: function(callback) {
     if (callback.watcher) return callback.watcher.result === 0;
     var values = [];
@@ -239,6 +258,7 @@ LSD.Array.prototype = {
     });
     return this.length === 0 || callback.watcher.result === 0;
   },
+  
   some: function(callback) {
     var count = 0;
     var values = [];
@@ -257,6 +277,7 @@ LSD.Array.prototype = {
     });
     return count > 0;
   },
+  
   map: function(callback) {
     var values = [];
     this.iterate(callback, function(result, value, index, state, old) {
@@ -270,19 +291,30 @@ LSD.Array.prototype = {
       return values;
     }); 
     return values;
+  },
+  
+  toObject: function(normalize, serializer) {
+    for (var result = [], i = 0; i < this.length; i++) {
+      var value = this[i];
+      if ((!normalize || typeof value != 'undefined') && (typeof value._length == 'undefined' || value._length > 0))
+        result.push(LSD.toObject(value, normalize, serializer));
+    }
+    return result;
   }
 };
 
 LSD.Array.prototype['<<'] = LSD.Array.prototype.push;
 LSD.Array.prototype['+'] = LSD.Array.prototype.concat;
 
-/*
+/*=
   There're not too many methods in a standart javascript Array prototype.
   Libraries like mootools provide many more useful functions that can be
   used with array. But internally, those extensions have to rely on
   simple rules of Array behavior which are easy to emulate. LSD.Array
   obeys those rules, so those additional extra functions work out of the box.
 */
-for (var method in Array.prototype) 
-  if (!LSD.Array.prototype[method]) 
-    LSD.Array.prototype[method] = Array.prototype[method];
+!function() {
+  for (var method in Array.prototype) 
+    if (!LSD.Array.prototype[method]) 
+      LSD.Array.prototype[method] = Array.prototype[method];
+}();

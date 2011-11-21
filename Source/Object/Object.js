@@ -19,10 +19,13 @@ provides:
 */
 
 LSD.Object = function(object) {
+  this._length = 0;
   if (object) for (var key in object) this.set(key, object[key]);
 };
 
 LSD.Object.prototype = {
+  _constructor: LSD.Object,
+  
   set: function(key, value, memo, index) {
     if (index == null || index === true || index === false) index = key.indexOf('.');
     if (index > -1) {
@@ -31,7 +34,7 @@ LSD.Object.prototype = {
         i = index + 1;
         if (!end) {
           if (!obj[bit]) {
-            var o = new LSD.Object;
+            var o = new this._constructor;
             obj.set(bit, o);
             obj = o;
           } else {
@@ -49,6 +52,7 @@ LSD.Object.prototype = {
       var old = this[key];
       if (old === value && typeof old != 'undefined') return false;
       if (old) this.fireEvent('beforechange', key, old, false);
+      else this._length++;
       this[key] = value;
       this[key] = value = this.fireEvent('change', key, value, true, old, memo);
       var watched = this._watched;
@@ -59,6 +63,7 @@ LSD.Object.prototype = {
       return true;
     }
   },
+  
   unset: function(key, value, memo, index) {
     if (index == null || index === true || index === false) index = key.indexOf('.');
     if (index > -1) {
@@ -76,17 +81,23 @@ LSD.Object.prototype = {
       }
     } else {
       var old = this[key];
-      if (old == null && value != null) return false;
-      this.fireEvent('change', key, old, false, null, memo);
+      if (typeof old == 'undefined' && typeof value != 'undefined') return false;
+      this.fireEvent('change', key, old, false, undefined, memo);
       var watched = this._watched;
       if (watched && (watched = watched[key]))
         for (var i = 0, fn; fn = watched[i++];)
           if (fn.call) fn(undefined, old);
           else LSD.Object.callback(this, fn, key, undefined, old, memo);
       delete this[key];
+      this._length--;
       return true;
     }
   },
+  
+  get: function(name) {
+    return this[name]
+  },
+  
   mix: function(name, value, state, reverse, merge) {
     if (!name.indexOf) {
       for (var prop in name)
@@ -95,7 +106,7 @@ LSD.Object.prototype = {
     } else {
       if (typeOf(value) == 'object') {
         var obj = this[name];
-        if (!obj || !obj.merge) this.set(name, (obj = new LSD.Object.Stack));
+        if (!obj || !obj.merge) this.set(name, (obj = new this._constructor));
         if (merge) obj[state !== false ? 'merge' : 'unmerge'](value, reverse);
         else obj.mix(value, null, state, reverse);
       } else {
@@ -103,6 +114,7 @@ LSD.Object.prototype = {
       }
     }
   },
+  
   merge: function(object, reverse) {
     if (object.watch && object.addEvent) {
       var self = this;
@@ -115,22 +127,27 @@ LSD.Object.prototype = {
     }
     this.mix(object, null, true, reverse, true);
   },
+  
   unmerge: function(object, reverse) {
     if (object.unwatch && object.removeEvent) {
       object.removeEvent('change', this);
     }
     this.mix(object, null, false, reverse, true);
   },
+  
   include: function(key, memo) {
     return this.set(key, true, memo)
   },
+  
   erase: function(key, memo) {
     return this.unset(key, true, memo)
   },
+  
   write: function(key, value, memo) {
     if (value == null) this.unset(key, this[key], memo)
     else this.set(key, value, memo);
   },
+  
   fireEvent: function(key, a, b, c, d, e) {
     var storage = this._events;
     if (storage) {
@@ -144,12 +161,14 @@ LSD.Object.prototype = {
     }
     return b;
   },
+  
   addEvent: function(key, callback, unshift) {
     var storage = this._events;
     if (!storage) storage = this._events = {};
     (storage[key] || (storage[key] = []))[unshift ? 'unshift' : 'push'](callback);
     return this;
   },
+  
   removeEvent: function(key, callback) {
     var group = this._events[key]
     for (var j = group.length; --j > -1;) {
@@ -161,6 +180,7 @@ LSD.Object.prototype = {
     }
     return this;
   },
+  
   watch: function(key, callback, lazy) {
     var index = key.indexOf('.');
     if (index > -1) {
@@ -185,6 +205,7 @@ LSD.Object.prototype = {
       }
     }
   },
+  
   unwatch: function(key, callback) {
     var index = key.indexOf('.');
     if (index > -1) {
@@ -206,9 +227,11 @@ LSD.Object.prototype = {
       }
     }
   },
+  
   has: function(key) {
     return this.hasOwnProperty(key) && (key.charAt(0) != '_')
   },
+  
   join: function(separator) {
     var ary = [];
     for (var key in this)
@@ -223,9 +246,11 @@ LSD.Object.prototype = {
   plain object copy of the values
 */
 
-LSD.toObject = LSD.Object.toObject = LSD.Object.prototype.toObject = function() {
-  if (this === LSD.Object || this === LSD) var obj = arguments[0];
-  else var obj = this;
+LSD.toObject = LSD.Object.toObject = LSD.Object.prototype.toObject = function(normalize, serializer) {
+  if (this === LSD.Object || this === LSD)
+    var obj = normalize, normalize = serializer, serializer = arguments[2];
+  else 
+    var obj = this;
   if (obj == null) return null;
   if (obj._toObject) {
     if (obj._toObject.call) {
@@ -233,24 +258,48 @@ LSD.toObject = LSD.Object.toObject = LSD.Object.prototype.toObject = function() 
     } else if (obj._toObject.push) {
       var object = {};
       for (var i = 0, prop; prop = obj._toObject[i++];)
-        if (obj[prop]) object[prop] = LSD.toObject(obj[prop]);
+        if (obj[prop]) {
+          var val = LSD.toObject(obj[prop], normalize, serializer);
+          if (!normalize || typeof val != 'undefined')
+            object[prop] = val;
+        }
     } else {
       var object = {};
       for (var prop in obj) 
-        if (prop in obj._toObject) object[prop] = LSD.toObject(obj[prop])
+        if (prop in obj._toObject) {
+          var val = LSD.toObject(obj[prop], normalize, serializer);
+          if (!normalize || typeof val != 'undefined')
+            object[prop] = val;
+        }
+    }
+  } else if (obj.lsd && obj.nodeType) {
+    if (serializer === true) {
+      return obj;
+    } else if (typeof serializer == 'function') {
+      return serializer(obj, normalize)
+    } else {
+      if (!obj.toData) return;
+      return obj.toData();
     }
   } else if (obj.push) {
-    var object = [];
-    for (var i = 0, j = obj.length; i < j; i++)
-      object[i] = LSD.toObject(obj[i]);
+    if (obj.toObject) {
+      var object = obj.toObject(normalize, serializer)
+    } else {
+      var object = [];
+      
+      for (var i = 0, j = obj.length; i < j; i++)
+        object[i] = LSD.toObject(obj[i], normalize, serializer);
+    }
   } else if (obj.setDate) {
-    var object = obj.toString();
+    return obj.toString();
   } else if (!obj.indexOf && typeof obj == 'object') {
     var object = {};
     for (var key in obj)
       if (obj.has ? obj.has(key) : obj.hasOwnProperty(key)) {
         var val = obj[key];
-        object[key] = !val || val.push || val.exec || val.call || val.indexOf ? val : LSD.toObject(val);
+        val = val == null || val.exec || typeof val != 'object' ? val : LSD.toObject(val, normalize, serializer);
+        if (!normalize || typeof val != 'undefined') 
+          object[key] = val;
       }
   }
   return object || obj;

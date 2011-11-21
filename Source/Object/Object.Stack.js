@@ -31,11 +31,13 @@ provides:
   A paired `unset` having nothing to unset will silently do nothing.
 */
 
-LSD.Object.Stack = function(object) {
-  if (object) for (var key in object) this.set(key, object[key]);
+LSD.Object.Stack = function() {
+  LSD.Object.apply(this, arguments);
 };
 
-LSD.Object.Stack.prototype = Object.append(new LSD.Object, {
+LSD.Object.Stack.prototype = {
+  _constructor: LSD.Object.Stack,
+  
   set: function(key, value, memo, prepend) {
     var index = key.indexOf('.');
     if (index == -1) {
@@ -82,4 +84,10 @@ LSD.Object.Stack.prototype = Object.append(new LSD.Object, {
       this.set(key, value, memo);
     } else if (this[key] != null) this.unset(key, this[key], memo);
   }
-})
+};
+
+!function() {
+  for (var method in LSD.Object.prototype)
+    if (!LSD.Object.Stack.prototype[method])
+      LSD.Object.Stack.prototype[method] = LSD.Object.prototype[method];
+}();
