@@ -34,13 +34,13 @@ LSD.Object.Params.prototype = {
       index = (next === '' || (parseInt(next) == next));
       if (array) {
         if (next != null && !object[name]) {
-          if (name !== '') object.set(name, index ? new LSD.Array : new LSD.Object);
-          else name = object.push(index ? new LSD.Array : new LSD.Object) - 1;
+          if (name !== '') object.set(name, index ? new LSD.Array : new this._constructor);
+          else name = object.push(index ? new LSD.Array : new this._constructor) - 1;
         }
       } else if (index)  {
         if (!object[name]) object.set(name, new LSD.Array);
       } else if (next != null) {
-        if (!object[name]) object.set(name, new LSD.Object)
+        if (!object[name]) object.set(name, new this._constructor)
       }
       if (next == null) {
         if (name !== '') {
