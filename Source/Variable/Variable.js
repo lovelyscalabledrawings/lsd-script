@@ -74,12 +74,12 @@ LSD.Script.Variable.prototype = {
   onSet: function(value, output) {
     if (value == null && this.placeholder) value = this.placeholder;
     if (this.output && output !== false) this.update(value);
-    if (this.attached) {
-      if (this.parents)
-        for (var i = 0, parent; parent = this.parents[i++];) {
-          if (!parent.translating && parent.attached) parent.set();
-        }
-    }
+    if (this.attached && this.parents)
+      for (var i = 0, parent; parent = this.parents[i++];) {
+        if (!parent.translating && parent.attached) parent.set();
+      }
+    if (this.wrapper && this.wrapper.wrappee)
+      this.wrapper.wrappee.onSuccess(value)
   },
   
   attach: function(origin) {
@@ -105,12 +105,6 @@ LSD.Script.Variable.prototype = {
     return this.source.variables[state ? 'watch' : 'unwatch'](input, callback);
   },
   
-  update: function(value) {
-    var output = this.output;
-    if (!output) return;
-    return LSD.Script.output(this.output, value); 
-  },
-  
   getContext: function() {
     for (var scope = this.source, context; scope; scope = scope.parentScope) {
       context = (scope.nodeType && scope.nodeType != 11) ? scope : scope.widget;
@@ -120,3 +114,6 @@ LSD.Script.Variable.prototype = {
     return this.context;
   } 
 };
+Object.each(LSD.Script.prototype, function(value, key) {
+  if (!LSD.Script.Variable.prototype[key]) LSD.Script.Variable.prototype[key] = value;
+});

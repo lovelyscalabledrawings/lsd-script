@@ -243,7 +243,7 @@ Parser.multiline = function(source) {
 };
 
 Parser.prototype.compile = LSD.Script.compile = function(object, source, output, parse) {
-  if (parse) object = LSD.Script.parse(object)
+  if (parse !== false && typeof object == 'string') object = LSD.Script.parse(object)
   var variable = LSD.Script.materialize(object, source, output);
   if (object.local) variable.local = true;
   return variable;

@@ -45,7 +45,7 @@ LSD.Script.Block = function(input, source, output, locals, origin) {
     LSD.Script.Block.findLocalVariables(this, locals)
 }
 
-LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
+LSD.Script.Block.prototype = {
   type: 'block',
   
   yield: function(keyword, args, callback, index, old) {
@@ -173,6 +173,10 @@ LSD.Script.Block.prototype = Object.append({}, LSD.Script.Function.prototype, {
     //if (!arg) arg = this;
     //for (var i = 0, j = this.args.length; i < j;)
   }
+};
+
+Object.each(LSD.Script.Function.prototype, function(value, key) {
+  if (!LSD.Script.Block.prototype[key]) LSD.Script.Block.prototype[key] = value;
 });
 
 LSD.Script.Block.findLocalVariables = function(block, locals) {
@@ -200,7 +204,7 @@ LSD.Script.Block.findLocalVariables = function(block, locals) {
         }
     }
   }
-}
+};
 
 LSD.Function = function() {
   var args = Array.prototype.slice.call(arguments, 0);
@@ -216,5 +220,5 @@ LSD.Function = function() {
   if (!body.push) body = [body];
   return new LSD.Script.Block(body, source, output, args.map(function(arg) {
     return {type: 'variable', name: arg}
-  })).value
+  })).value;
 };

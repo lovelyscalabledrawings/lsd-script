@@ -50,7 +50,7 @@ LSD.Script = function(input, source, output) {
     output = options.output;
     source = options.source;
   }
-  var result = LSD.Script.compile(input, source, output, true);
+  var result = LSD.Script.compile(input, source, output);
   if (result.variable) {
     if (options) {
       if (options.placeholder) result.placeholder = options.placeholder;
@@ -91,6 +91,28 @@ LSD.Script.output = function(object, value) {
         object.nodeValue = value;
         break;
       case 8:
+    }
+  }
+};
+
+LSD.Script.prototype = {
+  callback: LSD.Script.output,
+  
+  update: function(value) {
+    var output = this.output;
+    if (!output) return;
+    return this.callback(this.output, value); 
+  },
+  
+  wrap: function(script) {
+    script.wrapper = this;
+    this.wrapped = script;
+  },
+  
+  unwrap: function(script) {
+    if (script.wrapper == this) {
+      script.wrapper = this.wrapper
+      delete this.wrapped;
     }
   }
 };

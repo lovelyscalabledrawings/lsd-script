@@ -39,7 +39,7 @@ LSD.Script.Function = function(input, source, output, name) {
   this.args = Array.prototype.slice.call(input, 0);
 };
 
-LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype, {
+LSD.Script.Function.prototype = {
   type: 'function',
   
   fetch: function(state, origin, reset) {
@@ -96,7 +96,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
       } else {
         arg = this.args[i] = this.translate(arg, state, i, piped, this.origin ? this.origin.args[i] : null);
         value = arg.variable ? arg.value : arg;
-        if (value && value.chain && value.callChain) return args;
+        if (value && value.chain && value.callChain) return [];
       }
       args.push(value);
       piped = value;
@@ -105,7 +105,12 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
         switch (evaluated) {
           case true:
             break;
-          case false:  
+          case false:
+            for (var k = i + 1; k < j; k++) {
+              var argument = this.args[k];
+              if (argument != null && argument.variable && argument.attached && argument.type == 'function')
+                argument.unexecute()
+            }
             return args[args.length - 1];
           default:
             if (evaluated != null && evaluated == false && evaluated.failure) {
@@ -146,7 +151,7 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
   },
   
   translate: function(arg, state, i, piped, origin) {
-    if (!arg.variable && state) arg = LSD.Script.compile(arg, this.source);
+    if (!arg.variable && state) arg = LSD.Script.compile(arg, this.source, null, false);
     if (arg.variable) {
       if (!arg.parents) arg.parents = [];
       if (origin && !origin.local && origin.variable) {
@@ -228,4 +233,8 @@ LSD.Script.Function.prototype = Object.append({}, LSD.Script.Variable.prototype,
     }
     return value;
   }
+};
+
+Object.each(LSD.Script.Variable.prototype, function(value, key) {
+  if (!LSD.Script.Function.prototype[key]) LSD.Script.Function.prototype[key] = value;
 });

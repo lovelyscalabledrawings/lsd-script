@@ -81,7 +81,7 @@ LSD.Script.Selector = function(input, source, output) {
   if (!this.source) throw "Selector should be applied on widgets";
 };
 
-LSD.Script.Selector.prototype = Object.append({}, LSD.Script.Variable.prototype, {
+LSD.Script.Selector.prototype = {
   type: 'selector',
   
   request: function(input, callback, source, state) {
@@ -108,6 +108,10 @@ LSD.Script.Selector.prototype = Object.append({}, LSD.Script.Variable.prototype,
     this.value = this.collection.length ? this.collection : false;
     this.onSet(this.value);
   }
+};
+
+Object.each(LSD.Script.Variable.prototype, function(value, key) {
+  if (!LSD.Script.Selector.prototype[key]) LSD.Script.Selector.prototype[key] = value;
 });
 
 LSD.Script.Selector.rElementContext = /^\s*([$]+)\s*/;

@@ -40,4 +40,4 @@ LSD.Struct = function(properties) {
     this._toObject = properties
   };
 };
-LSD.Struct.prototype = LSD.Object.prototype;
+LSD.Struct.prototype = new LSD.Object;
