@@ -77,7 +77,9 @@ LSD.Object.Params.prototype = {
         return;
       }
     }
-  }
+  },
+  
+  _exclusions: Array.object('_method')
 };
 
 LSD.Object.Params.rNameParser = /(^[^\[]+)|\[([^\]]*)\]/g;

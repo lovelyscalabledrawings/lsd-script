@@ -229,7 +229,7 @@ LSD.Object.prototype = {
   },
   
   has: function(key) {
-    return this.hasOwnProperty(key) && (key.charAt(0) != '_')
+    return this.hasOwnProperty(key) && ((key.charAt(0) != '_') || (this._exclusions && this._exclusions[key]))
   },
   
   join: function(separator) {
