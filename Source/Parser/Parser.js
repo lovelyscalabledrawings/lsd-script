@@ -142,13 +142,33 @@ Parser.prototype.parse = LSD.Script.parse = function(value) {
           If a token starts with the dot, it should be added
           to previous token.
         */
-        if (!tail || !token) {
-          token = {type: 'variable', name: text};
-          if (tail) token.tail = true;
-          scope.push(token);
-        } else {
-          token.name += '.' + text;
-        }
+        switch (text) {
+          case 'null':
+            scope.push(null);
+            break;
+          case 'false':
+            scope.push(false);
+            break;
+          case 'true':
+            scope.push(true);
+            break;
+          case 'undefined':
+            scope.push(undefined);
+            break;
+          case 'if': case 'unless': case 'else':
+            args = []
+            fn = {type: 'function', name: text, value: args};
+            scope.push(fn);
+            break;
+          default:
+            if (!tail || !token) {
+              token = {type: 'variable', name: text};
+              if (tail) token.tail = true;
+              scope.push(token);
+            } else {
+              token.name += '.' + text;
+            }
+        };
       } else {
         /*
           Compose a selector from various tokens
@@ -183,7 +203,7 @@ Parser.multiline = function(source) {
   for (var match, lines = [], regex = LSD.Script.Parser.rLine; match = regex.exec(source);) 
     if (match[2] !== "") lines.push(match.splice(1));
   var args, baseline, blocks = [], indent, level = 0;
-  for (var k = 0, line, results = [], previous; line = lines[k]; k++) {
+  for (var k = 0, line, results = [], previous, i = 0; line = lines[k]; k++) {
     if (baseline) {
       if (line[0].substr(0, baseline.length) != baseline) {
         throw "Inconsistent indentation: `" + 

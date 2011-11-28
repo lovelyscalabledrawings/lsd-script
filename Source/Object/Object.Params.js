@@ -22,7 +22,7 @@ LSD.Object.Params = function() {
   LSD.Object.apply(this, arguments);
 };
 
-LSD.Object.Params.prototype = {
+LSD.Object.Params.prototype = Object.append(new LSD.Object, {
   _constructor: LSD.Object.Params,
 
   set: function(key, value) {
@@ -80,12 +80,6 @@ LSD.Object.Params.prototype = {
   },
   
   _exclusions: Array.object('_method')
-};
+});
 
 LSD.Object.Params.rNameParser = /(^[^\[]+)|\[([^\]]*)\]/g;
-
-!function() {
-  for (var method in LSD.Object.prototype)
-    if (!LSD.Object.Params.prototype[method])
-      LSD.Object.Params.prototype[method] = LSD.Object.prototype[method];
-}();

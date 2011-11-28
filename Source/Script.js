@@ -51,7 +51,7 @@ LSD.Script = function(input, source, output) {
     source = options.source;
   }
   var result = LSD.Script.compile(input, source, output);
-  if (result.variable) {
+  if (result.script) {
     if (options) {
       if (options.placeholder) result.placeholder = options.placeholder;
       if (options.local) result.local = true;

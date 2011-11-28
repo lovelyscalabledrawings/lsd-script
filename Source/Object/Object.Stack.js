@@ -39,6 +39,7 @@ LSD.Object.Stack.prototype = {
   _constructor: LSD.Object.Stack,
   
   set: function(key, value, memo, prepend) {
+    if (this._transform) value = this._transform(key, value);
     var index = key.indexOf('.');
     if (index == -1) {
       var stack = this._stack;
@@ -52,9 +53,12 @@ LSD.Object.Stack.prototype = {
       return LSD.Object.prototype.set.call(this, key, value, memo, index);
   },
   unset: function(key, value, memo, prepend) {
+    if (this._transform) value = this._transform(key, value);
     var index = key.indexOf('.');
     if (index == -1) {
-      var group = this._stack[key], length = group.length;
+      var group = this._stack[key];
+      if (!group) return;
+      var length = group.length;
       if (prepend) {
         for (var i = 0, j = length; i < j; i++)
           if (group[i] === value) {
@@ -86,8 +90,4 @@ LSD.Object.Stack.prototype = {
   }
 };
 
-!function() {
-  for (var method in LSD.Object.prototype)
-    if (!LSD.Object.Stack.prototype[method])
-      LSD.Object.Stack.prototype[method] = LSD.Object.prototype[method];
-}();
+LSD.Object.Stack.prototype = Object.append(new LSD.Object, LSD.Object.Stack.prototype)

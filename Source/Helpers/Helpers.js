@@ -75,6 +75,12 @@ Object.append(LSD.Script.Helpers, {
     return result;
   },
   
+  'unless': function(condition, block) {
+    var result = block.call(block, condition ? 'unyield' : 'yield')
+    if (typeof result == 'undefined') result = null;
+    return result;
+  },
+  
   /*
     Yield function simply returns the value. It wouldn't do anything special by itself,
     but when one script wraps another, it makes the latter be called when yield happens

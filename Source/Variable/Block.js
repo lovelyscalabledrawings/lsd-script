@@ -198,7 +198,7 @@ LSD.Script.Block.findLocalVariables = function(block, locals) {
       if (item.value)
         for (var k = 0, l = item.value.length, value; k < l; k++) {
           var value = item.value[k];
-          if (!value.hasOwnProperty('type')) continue;
+          if (value == null || !value.hasOwnProperty('type')) continue;
           value.parent = item;
           stack.push(value);
         }

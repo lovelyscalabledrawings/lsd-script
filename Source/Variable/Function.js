@@ -89,13 +89,17 @@ LSD.Script.Function.prototype = {
     if (this.name) 
       var literal = LSD.Script.Literal[this.name];
     for (var i = 0, j = this.args.length, arg, piped = this.prepiped; i < j; i++) {
-      if ((arg = this.args[i]) == null) continue;
+      if (typeof (arg = this.args[i]) == 'undefined') continue;
       if (i === literal) {
         if (!arg.type || arg.type != 'variable') throw "Unexpected token, argument must be a variable name";
         value = arg.name;
       } else {
-        arg = this.args[i] = this.translate(arg, state, i, piped, this.origin ? this.origin.args[i] : null);
-        value = arg.variable ? arg.value : arg;
+        if (arg && (arg.script || arg.type)) {
+          arg = this.args[i] = this.translate(arg, state, i, piped, this.origin ? this.origin.args[i] : null);
+          value = arg.value
+        } else {
+          value = arg;
+        }
         if (value && value.chain && value.callChain) return [];
       }
       args.push(value);
@@ -108,7 +112,7 @@ LSD.Script.Function.prototype = {
           case false:
             for (var k = i + 1; k < j; k++) {
               var argument = this.args[k];
-              if (argument != null && argument.variable && argument.attached && argument.type == 'function')
+              if (argument != null && argument.script && argument.attached && argument.type == 'function')
                 argument.unexecute()
             }
             return args[args.length - 1];
@@ -122,7 +126,7 @@ LSD.Script.Function.prototype = {
             }
         }
       } else {
-        if (arg.variable && typeof value == 'undefined' && !LSD.Script.Keywords[this.name]) return;
+        if (arg != null && arg.script && typeof value == 'undefined' && !LSD.Script.Keywords[this.name]) return;
       }
     }
     if (this.context !== false) this.context = this.getContext();
@@ -151,39 +155,37 @@ LSD.Script.Function.prototype = {
   },
   
   translate: function(arg, state, i, piped, origin) {
-    if (!arg.variable && state) arg = LSD.Script.compile(arg, this.source, null, false);
-    if (arg.variable) {
-      if (!arg.parents) arg.parents = [];
-      if (origin && !origin.local && origin.variable) {
-        var arg = origin;
-        var index = arg.parents.indexOf(this);
-        if (state) {
-          if (i !== null) this.args[i] = arg;
-          if (index == -1) arg.parents.push(this)
-        } else {
-          if (index != -1) arg.parents.splice(index, 1);
-        }
+    if (!arg.script && state) arg = LSD.Script.compile(arg, this.source, null, false);
+    if (!arg.parents) arg.parents = [];
+    if (origin && !origin.local && origin.script) {
+      var arg = origin;
+      var index = arg.parents.indexOf(this);
+      if (state) {
+        if (i !== null) this.args[i] = arg;
+        if (index == -1) arg.parents.push(this)
       } else {
-        if (state) {
-          if (i !== null) this.args[i] = arg;
-          if (origin && origin.local) arg.local = true;
-          this.translating = true;
-          var pipable = (arg.variable && piped !== arg.piped); 
-          if (pipable) arg.prepiped = arg.piped = piped;
-          var attachment = arg.parents.indexOf(this) > -1;
-          if (!attachment || pipable) {
-            if (!attachment) arg.parents.push(this);
-            if (!arg.attached || pipable) arg.attach(origin);
-          }
-          this.translating = false;
-        } else {
-          if (arg.parents) {
-            var index = arg.parents.indexOf(this);
-            if (index > -1) {
-              arg.parents.splice(index, 1);
-              if (arg.parents.length == 0 && arg.attached) arg.detach(origin)
-            };
-          }
+        if (index != -1) arg.parents.splice(index, 1);
+      }
+    } else {
+      if (state) {
+        if (i !== null) this.args[i] = arg;
+        if (origin && origin.local) arg.local = true;
+        this.translating = true;
+        var pipable = (arg.script && piped !== arg.piped); 
+        if (pipable) arg.prepiped = arg.piped = piped;
+        var attachment = arg.parents.indexOf(this) > -1;
+        if (!attachment || pipable) {
+          if (!attachment) arg.parents.push(this);
+          if (!arg.attached || pipable) arg.attach(origin);
+        }
+        this.translating = false;
+      } else {
+        if (arg.parents) {
+          var index = arg.parents.indexOf(this);
+          if (index > -1) {
+            arg.parents.splice(index, 1);
+            if (arg.parents.length == 0 && arg.attached) arg.detach(origin)
+          };
         }
       }
     }

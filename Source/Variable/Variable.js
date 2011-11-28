@@ -61,7 +61,7 @@ LSD.Script.Variable.uid = 0;
 LSD.Script.Variable.prototype = {
   type: 'variable',
   
-  variable: true,
+  script: true,
   
   set: function(value, reset) {
     if (this.frozen) return;

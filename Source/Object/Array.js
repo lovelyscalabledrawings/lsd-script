@@ -163,6 +163,7 @@ LSD.Array.prototype = {
       block.callback = block;
     }
     this[state !== false ? 'watch' : 'unwatch'](block.watcher);
+    return null;
   },
   
   uneach: function(block) {
@@ -245,7 +246,7 @@ LSD.Array.prototype = {
       if (callback.watcher.result == null) callback.watcher.result = 0;
       if (state) {
         var previous = values[index];
-        values[index] = result;
+        values[index] = result || false;
         if (previous != result) 
           callback.watcher.result += (state && result ? previous == null ? 0 : -1 : 1);
         if (old != null && old !== false) delete values[old];

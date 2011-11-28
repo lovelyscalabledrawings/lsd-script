@@ -76,7 +76,7 @@ LSD.Script.Selector = function(input, source, output) {
         return '';
     }
   }.bind(this));
-  this.collection = [];
+  this.collection = new LSD.Array;
   this.source = this.getContext();
   if (!this.source) throw "Selector should be applied on widgets";
 };
