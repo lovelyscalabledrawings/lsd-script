@@ -53,8 +53,8 @@ LSD.Object.prototype = {
       else this._length++;
       if (this._transform) value = this._transform(key, value);
       this[key] = value;
-      if (this._onChange) value = this[key] = this._onChange(key, value, true, old);
-      if (this.onChange) value = this[key] = this.onChange(key, value, true, old);
+      if (this._onChange) value = this[key] = this._onChange(key, value, true, old, memo);
+      if (this.onChange) value = this[key] = this.onChange(key, value, true, old, memo);
       if (value != null && value._constructor && !value._parent && key != '_parent') {
         value.set('_parent', this);
       }
@@ -142,7 +142,7 @@ LSD.Object.prototype = {
       if (typeOf(value) == 'object') {
         var obj = this[name];
         if (!obj || !obj.merge) 
-          if ((obj = this.construct(name)) === false)
+          if (!(obj = this.construct(name)))
             return;
         var storage = (this._stored || (this._stored = {}));
         var group = storage[name];
