@@ -254,6 +254,8 @@ LSD.Array.prototype = {
         if (!result) callback.watcher.result--
         values.splice(index, 1);
       }
+      //console.log([result, value, state], callback.watcher.result, [].concat(values), index, previous)
+      //if (window.$debug) debugger
       if (callback.block) callback.block.update(callback.watcher.result === 0);
       return callback.watcher.result === 0;
     });
@@ -273,6 +275,7 @@ LSD.Array.prototype = {
         if (result) count--
         values.splice(index, 1);
       }
+      console.log('some', result, value, count)
       if (callback.block) callback.block.update(count > 0);
       return count > 0;
     });
@@ -297,8 +300,9 @@ LSD.Array.prototype = {
   toObject: function(normalize, serializer) {
     for (var result = [], i = 0; i < this.length; i++) {
       var value = this[i];
+      if (value != null) value = LSD.toObject(this[i], normalize, serializer);
       if ((!normalize || typeof value != 'undefined') && (typeof value._length == 'undefined' || value._length > 0))
-        result.push(LSD.toObject(value, normalize, serializer));
+       result.push(value);
     }
     return result;
   }

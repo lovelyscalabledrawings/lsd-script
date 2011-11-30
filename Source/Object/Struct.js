@@ -27,10 +27,16 @@ provides:
 
 LSD.Struct = function(properties) {
   if (this === LSD) {
+    if (properties) {
+      var constructor = properties._constructor
+      delete properties._constructor;
+    } else constructor = LSD.Object;
     var Struct = function() {
       LSD.Struct.constructor.call(this, properties, arguments)
     };
-    Struct.prototype = new LSD.Struct;
+    Struct.prototype = Object.append(new (constructor || LSD.Object), new LSD.Struct);
+    if (!Struct.prototype._constructor) 
+      Struct.prototype._constructor = LSD.Object;
     return Struct;
   }
   if (properties) {
@@ -49,8 +55,8 @@ LSD.Struct.constructor = function(properties, args) {
   if (this.initialize) this.initialize.apply(this, Array.prototype.slice.call(args, 1));
 };
 
-LSD.Struct.prototype = Object.append(new LSD.Object, {
-  _onChange: function(name, value, state, old) {
+LSD.Struct.prototype = {
+  _onChange: function(name, value, state, old, memo) {
     if (!this._properties) return;
     var prop = this._properties[name];
     if (prop) {
@@ -58,14 +64,21 @@ LSD.Struct.prototype = Object.append(new LSD.Object, {
         case 'function':
           var constructor = prop.prototype && prop.prototype._constructor;
           if (constructor) {
-            if (typeof this[name] == 'undefined') this.construct(name, prop)
+            if (state && typeof this[name] == 'undefined') this.construct(name, prop, memo)
           } else {
             if (state) return prop.call(this, value, old);
             else return prop.call(this, undefined, value);
           }
           break;
         case 'string':
-          if (!state) this.unset(prop, value);
+          var obj = value
+          if (!state && obj != null && obj.mix) {
+            var stored = this._stored && this._stored[name];
+            if (stored != null) {
+              for (var i = 0, j = stored.length; i < j; i++)
+                if (obj != null) obj.mix(stored[i], null, false, true, false, this);
+            }
+          }
       }
     }
     return value;
@@ -73,17 +86,18 @@ LSD.Struct.prototype = Object.append(new LSD.Object, {
   implement: function(object) {
     for (var name in object) this.prototype[name] = object[name]
   },
-  construct: function(name) {
+  construct: function(name, property, memo) {
     var property = this._properties && this._properties[name];
     if (typeof property == 'string') {
       if (!this._observed) this._observed = {};
       if (!this._observed[name]) {
         this._observed[name] = [this, name];
-        this.watch(property, this._observed[name])
+        this.watch(property, this._observed[name], false)
       }
       return (this[name] || (this[name] = this.get(property, true)))
     }
-    return LSD.Object.prototype.construct.call(this, name, property);
+    if (this.delegate && !memo) memo = this;
+    return LSD.Object.prototype.construct.call(this, name, property, memo);
   },
   _getConstructor: function(name) {
     var object = this._properties;
@@ -93,7 +107,7 @@ LSD.Struct.prototype = Object.append(new LSD.Object, {
     }
     return this._constructor;
   }
-});
+};
 
 /*
   Stack struct is a struct that has LSD.Object.Stack as a
@@ -104,16 +118,10 @@ LSD.Struct.prototype = Object.append(new LSD.Object, {
 */
 
 LSD.Struct.Stack = function(properties) {
-  if (this === LSD.Struct) {
-    var Struct = function() {
-      return LSD.Struct.constructor.call(this, properties, arguments)
-    };
-    Struct.prototype = new LSD.Struct.Stack;
-    return Struct;
-  }
-  return LSD.Struct.apply(this, arguments)
+  if (!properties) properties = {};
+  properties._constructor = LSD.Object.Stack;
+  return LSD.Struct(properties)
 }
-LSD.Struct.Stack.prototype = Object.append(new LSD.Struct, LSD.Object.Stack.prototype);
 
 /*
   Group struct has LSD.Object.Group its base object. 
@@ -121,13 +129,7 @@ LSD.Struct.Stack.prototype = Object.append(new LSD.Struct, LSD.Object.Stack.prot
 */
 
 LSD.Struct.Group = function(properties) {
-  if (this === LSD.Struct) {
-    var Struct = function() {
-      return LSD.Struct.constructor.call(this, properties, arguments)
-    };
-    Struct.prototype = new LSD.Struct.Group;
-    return Struct;
-  }
-  return LSD.Struct.apply(this, arguments)
+  if (!properties) properties = {};
+  properties._constructor = LSD.Object.Group;
+  return LSD.Struct(properties)
 }
-LSD.Struct.Group.prototype = Object.append(new LSD.Struct, LSD.Object.Group.prototype);

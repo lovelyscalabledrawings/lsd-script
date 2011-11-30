@@ -20,7 +20,10 @@ provides:
 
 LSD.Object = function(object) {
   this._length = 0;
-  if (object) for (var key in object) this.mix(key, object[key]);
+  if (object) 
+    for (var key in object)
+      if (object.has ? object.has(key) : object.hasOwnProperty(key))
+        this.mix(key, object[key], true, false, false);
 };
 
 LSD.Object.prototype = {
@@ -48,22 +51,30 @@ LSD.Object.prototype = {
       }
     } else {
       var old = this[key];
-      if (old === value && typeof old != 'undefined') return false;
+      var odef = typeof old == 'undefined';
+      if (old === value && !odef) return false;
       if (old != null) this._fireEvent('beforechange', key, old, false);
-      else this._length++;
       if (this._transform) value = this._transform(key, value);
       this[key] = value;
-      if (this._onChange) value = this[key] = this._onChange(key, value, true, old, memo);
-      if (this.onChange) value = this[key] = this.onChange(key, value, true, old, memo);
-      if (value != null && value._constructor && !value._parent && key != '_parent') {
-        value.set('_parent', this);
+      var priv = key.charAt(0) == '_';
+      if (!priv) {
+        if (this._onChange) 
+          value = this[key] = this._onChange(key, value, true, old, memo);
+        if (this.onChange)
+          value = this[key] = this.onChange(key, value, true, old, memo);
+        if (value != null && value._constructor && !value._parent)
+          value.set('_parent', this);
       }
-      if (key.charAt(0) != '_')
+      if (!priv) {
         this[key] = this._fireEvent('change', key, value, true, old, memo);
+        if (odef) this._length++;
+      }
       if (this[key] === false && value !== false) {
         this[key] = old;
         return false;
-      } else value = this[key];
+      } else {
+        value = this[key];
+      }
       var watched = this._watched;
       if (watched && (watched = watched[key]))
         for (var i = 0, fn; fn = watched[i++];)
@@ -71,9 +82,13 @@ LSD.Object.prototype = {
           else LSD.Object.callback(this, fn, key, value, old, memo);
       var stored = this._stored && this._stored[key];
       if (stored != null) {
+        var memos = this._memos[key];
         for (var i = 0, j = stored.length; i < j; i++) {
-          if (old != null) old.mix(stored[i], null, false);
-          if (value != null) value.mix(stored[i], null, true);
+          var memoed = memos[i];
+          if (old != null && (!memoed || !memoed.delegate || !memoed.delegate(old, key, stored[i], false, this)))
+            old.mix(stored[i], null, false, true, false, memoed);
+          if (value != null && (!memoed || !memoed.delegate || !memoed.delegate(value, key, stored[i], true, this)))
+            value.mix(stored[i], null, true, true, false, memoed);
         }
       }
       return true;
@@ -99,17 +114,33 @@ LSD.Object.prototype = {
       if (typeof value != 'undefined') old = value;
       else var old = this[key];
       if (typeof old == 'undefined' && typeof value != 'undefined') return false;
-      if (this._onChange) value = this._onChange(key, old, false, undefined);
-      if (value != null && value._parent === this) value.unset('_parent', this);
-      if (key.charAt(0) != '_')
+      var priv = key.charAt(0) == '_';
+      if (!priv) {
+        if (this._onChange) 
+          value = this[key] = this._onChange(key, old, false, undefined);
+        if (this.onChange)
+          value = this[key] = this.onChange(key, old, false, undefined);
+        if (value != null && value._constructor && value._parent === this) 
+          value.unset('_parent', this);
+      }
+      if (key.charAt(0) != '_') {
         this._fireEvent('change', key, old, false, undefined, memo);
+        this._length--;
+      }  
       var watched = this._watched;
       if (watched && (watched = watched[key]))
         for (var i = 0, fn; fn = watched[i++];)
           if (fn.call) fn.call(this, undefined, old);
           else LSD.Object.callback(this, fn, key, undefined, old, memo);
       delete this[key];
-      this._length--;
+      var stored = this._stored && this._stored[key];
+      if (stored != null) {
+        for (var i = 0, j = stored.length; i < j; i++) {
+          var memoed = this._memos[key][i];
+          if (value != null && (!memoed || !memoed.delegate || !memoed.delegate(value, key, stored[i], false, this)))
+            value.mix(stored[i], null, false, true, false, memoed);
+        }
+      }
       return true;
     }
   },
@@ -133,32 +164,48 @@ LSD.Object.prototype = {
     }
   },
   
-  mix: function(name, value, state, reverse, merge) {
+  mix: function(name, value, state, reverse, merge, memo) {
+    if (!memo && this.delegate) memo = this;
     if (!name.indexOf) {
       for (var prop in name)
         if (typeof name.has == 'function' ? name.has(prop) : name.hasOwnProperty(prop))
-          this.mix(prop, name[prop], state, reverse, merge);
+          this.mix(prop, name[prop], state, reverse, merge, memo);
     } else {
       if (typeOf(value) == 'object') {
         var obj = this[name];
-        if (!obj || !obj.merge) 
-          if (!(obj = this.construct(name)))
-            return;
         var storage = (this._stored || (this._stored = {}));
         var group = storage[name];
         if (!group) group = storage[name] = [];
+        var storage = (this._memos || (this._memos = {}));
+        var memos = storage[name];
+        if (!memos) memos = storage[name] = [];
         if (state === false) {
           group.splice(group.indexOf(value), 1);
-        } else group.push(value);
-        if (merge) obj[state !== false ? 'merge' : 'unmerge'](value, reverse);
-        else obj.mix(value, null, state, reverse);
+          memos.splice(memos.indexOf(memo), 1);
+        } else {
+          group.push(value);
+          memos.push(memo)
+        }
+        if (obj == null) {
+          obj = this.construct(name, null, memo);
+          return;
+        } else if (obj.push) {
+          for (var i = 0, j = obj.length; i < j; i++) {
+            if (merge) obj[i][state !== false ? 'merge' : 'unmerge'](value, reverse, memo);
+            else if (!memo || !memo.delegate || !memo.delegate(obj[i], name, value, state, this))
+              obj[i].mix(value, null, state, reverse, false, memo);
+          }
+          return;
+        }
+        if (merge) obj[state !== false ? 'merge' : 'unmerge'](value, reverse, memo);
+        else obj.mix(value, null, state, reverse, false, memo);
       } else {
-        this[state !== false ? 'set' : 'unset'](name, value, true, reverse);
+        this[state !== false ? 'set' : 'unset'](name, value, memo, reverse);
       }
     }
   },
   
-  merge: function(object, reverse) {
+  merge: function(object, reverse, memo) {
     if (object.watch && object._addEvent) {
       var self = this;
       var watcher = function(name, value, state, old) {
@@ -168,14 +215,14 @@ LSD.Object.prototype = {
       watcher.callback = this;
       object._addEvent('change', watcher);
     }
-    this.mix(object, null, true, reverse, true);
+    this.mix(object, null, true, reverse, memo);
   },
   
   unmerge: function(object, reverse) {
     if (object.unwatch && object._removeEvent) {
       object._removeEvent('change', this);
     }
-    this.mix(object, null, false, reverse, true);
+    this.mix(object, null, false, reverse, memo);
   },
   
   include: function(key, memo) {
@@ -197,7 +244,7 @@ LSD.Object.prototype = {
       var finder = function(value, old) {
         var object = value == null ? old : value;
         if (object.watch && object.merge) {
-          object[value ? 'watch' : 'unwatch'](key.substring(index + 1), callback);
+          object[value ? 'watch' : 'unwatch'](key.substring(index + 1), callback, lazy);
         } else if (value != null) {
           for (var dot, start; dot != -1;) {
             start = (dot || index) + 1;
@@ -217,14 +264,14 @@ LSD.Object.prototype = {
         }
       };
       finder.callback = callback;
-      this.watch(key.substr(0, index) || '_parent', finder)
+      this.watch(key.substr(0, index) || '_parent', finder, lazy)
     } else {
       var watched = (this._watched || (this._watched = {}));
       (watched[key] || (watched[key] = [])).push(callback);
-      var value = this[key];
+      var value = this.get(key, lazy === false);
       if (!lazy && value != null) {
         if (callback.call) callback(value);
-        else LSD.Object.callback(this, callback, key, value);
+        else LSD.Object.callback(this, callback, key, value, undefined);
       }
     }
   },
@@ -244,7 +291,7 @@ LSD.Object.prototype = {
         watched.splice(i, 1);
         if (value != null) {
           if (callback.call) fn(undefined, value);
-          else LSD.Object.callback(this, fn, key, undefined, value);
+          else LSD.Object.callback(this, callback, key, undefined, value);
         }
         break;
       }
@@ -263,10 +310,11 @@ LSD.Object.prototype = {
     return ary.join(separator)
   },
   
-  construct: function(name, constructor) {
+  construct: function(name, constructor, memo) {
     if (!constructor) constructor = this._getConstructor ? this._getConstructor(name) : this._constructor;
     var instance = new constructor;
-    this.set(name, instance);
+    if (this.delegate && !memo) memo = this;
+    this.set(name, instance, memo);
     return instance;
   }
 };

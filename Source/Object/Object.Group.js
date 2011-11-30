@@ -27,15 +27,18 @@ LSD.Object.Group.prototype = {
   
   set: function(key, value, memo, prepend) {
     var index = key.indexOf('.');
-    if (index == -1) {
+    if (index == -1 && key.charAt(0) != '_' && !(this._properties && this._properties[key])) {
       var group = this[key];
       if (!group) group = this[key] = [];
       var length = (prepend || value == null) ? group.unshift(value) : group.push(value);
+      delete this[key];
     }
-    return LSD.Object.prototype.set.call(this, key, value, memo, index);
+    var result = LSD.Object.prototype.set.call(this, key, value, memo, index);
+    if (group) this[key] = group;
+    return result;
   },
   
-  unset: function(key, value, memo, prepend) {
+  unset: function(key, value, memo, prepend, bypass) {
     var index = key.indexOf('.');
     if (index == -1) {
       var group = this[key];
