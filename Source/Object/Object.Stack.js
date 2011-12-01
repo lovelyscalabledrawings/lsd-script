@@ -49,7 +49,6 @@ LSD.Object.Stack.prototype = {
       var length = (prepend || value == null) ? group.unshift(value) : group.push(value);
       value = group[length - 1];
     }
-        if (key == 'person') debugger
     if (value !== this[key] || typeof value === 'undefined')
       return LSD.Object.prototype.set.call(this, key, value, memo, index);
   },

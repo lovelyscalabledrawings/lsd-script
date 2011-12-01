@@ -79,6 +79,11 @@ LSD.Struct.prototype = {
                 if (obj != null) obj.mix(stored[i], null, false, true, false, this);
             }
           }
+      };
+      var group = this._observed && this._observed[name]
+      if (group) {
+        if (state) group[2] = value;
+        else delete group[2];
       }
     }
     return value;
