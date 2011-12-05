@@ -66,6 +66,10 @@ LSD.Array.prototype = {
     return result;
   },
   
+  unset: function(index, value, state, old) {
+    return this.set(index, value, false, old)
+  },
+  
   indexOf: function(object, from) {
     var id = typeof object == 'object' ? LSD.getID(object) : object;
     var length = this.length >>> 0;

@@ -400,7 +400,7 @@ LSD.toObject = LSD.Object.toObject = LSD.Object.prototype.toObject = function(no
     for (var key in obj)
       if (typeof obj.has == 'function' ? obj.has(key) : obj.hasOwnProperty(key)) {
         var val = obj[key];
-        val = val == null || val.exec || typeof val != 'object' ? val : LSD.toObject(val, normalize, serializer);
+        val = (val == null || val.exec || typeof val != 'object') ? val : LSD.toObject(val, normalize, serializer);
         if (!normalize || typeof val != 'undefined') 
           object[key] = val;
       }
