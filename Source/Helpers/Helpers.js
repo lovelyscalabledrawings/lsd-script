@@ -90,7 +90,6 @@ Object.append(LSD.Script.Helpers, {
     for (var fn = this; fn = fn.parents && fn.parents[0];) {
       if (fn.wrapped) {
         fn.wrappee = this;
-        console.error('wrapped', value, fn.wrapped)
         fn.wrapped.prepiped = fn.wrapped.piped = value;
         fn.wrapped.attach()
         return fn.wrapped.value;
