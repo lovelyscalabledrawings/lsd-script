@@ -57,23 +57,32 @@ LSD.Array.prototype = {
     return this.length;
   },
   
-  set: function(index, value, state, old) {
-    index = parseInt(index);
-    if (state !== false) {
+  set: function(key, value, old, memo) {
+    var index = parseInt(key);
+    if (index != index) { //NaN
+      return LSD.Object.prototype.set.call(this, key, value, memo);
+    } else {
       this[index] = value;
       if (index + 1 > this.length) this.length = index + 1;
+      value = this.__fireEvent('set', value, index, true, old);
+      if (this._onSet) this._onSet(value, index, true, old, memo);
+      if (this.onSet) this.onSet(value, index, true, old, memo);
+      return value;
+    }
+  },
+  
+  unset: function(key, value, old, memo) {
+    var index = parseInt(key);
+    if (index != index) { //NaN
+      return LSD.Object.prototype.unset.call(this, key, value, memo);
     } else {
       delete this[index];
       if (index + 1 == this.length) this.length = index;
+      value = this.__fireEvent('set', value, index, false, old);
+      if (this._onSet) this._onSet(value, index, false, old, memo);
+      if (this.onSet) this.onSet(value, index, false, old, memo);
+      return value;
     }
-    var result = this.fireEvent('change', value, index, !(state === false), old);
-    if (state === false || old != null)
-      this.fireEvent(state === false ? 'remove' : 'add', value, index, old);
-    return result;
-  },
-  
-  unset: function(index, value, state, old) {
-    return this.set(index, value, false, old)
   },
   
   indexOf: function(object, from) {
@@ -100,32 +109,32 @@ LSD.Array.prototype = {
       if (i < offset) {
         // remove original value
         values.push(this[i + index]);
-        this.set(i + index, this[i + index], false, false);
+        this.unset(i + index, this[i + index], false);
       } else {    
         // shift array forwards
         if (i == offset)
           for (var j = length, k = index + arity - shift; --j >= k;)
-            this.set(j + shift, this[j], true, j)
+            this.set(j + shift, this[j], j)
       }
       // insert new value
-      this.set(i + index, args[i], true, i < offset ? false : null);
+      this.set(i + index, args[i], i < offset ? false : null);
     }
     // shift array backwards
     if (shift < 0 && index < length)
       for (var i = index + arity - shift, old; i < length; i++) {
         if (i + shift <= index - shift) {
           if (i + shift < index - shift) values.push(this[i + shift])
-          this.set(i + shift, this[i + shift], false);
+          this.unset(i + shift, this[i + shift]);
         }
-        this.set(i + shift, this[i], true, i);
+        this.set(i + shift, this[i], i);
       }
     this.length = length + shift;
     for (var i = this.length; i < length; i++) {
       if (values.length < - shift) {
         values.push(this[i])
-        this.set(i, this[i], false);
+        this.unset(i, this[i]);
       } else {  
-        this.set(i, this[i], false, false);
+        this.unset(i, this[i], false);
       }
     }
     return values;
@@ -146,20 +155,14 @@ LSD.Array.prototype = {
   watch: function(callback) {
     for (var i = 0, j = this.length >>> 0; i < j; i++)
       callback.call(this, this[i], i, true);
-    this.addEvent('change', callback);
+    this._addEvent('set', callback);
   },
   
   unwatch: function(callback) {
     for (var i = 0, j = this.length >>> 0; i < j; i++)
       callback.call(this, this[i], i, false);
-    this.removeEvent('change', callback);
+    this._removeEvent('set', callback);
   },
-  
-  fireEvent: LSD.Object.prototype.fireEvent,
-  
-  removeEvent: LSD.Object.prototype.removeEvent,
-  
-  addEvent: LSD.Object.prototype.addEvent,
   
   iterate: function(block, callback, state) {
     if (state !== false) {
@@ -285,7 +288,6 @@ LSD.Array.prototype = {
         if (result) count--
         values.splice(index, 1);
       }
-      console.log('some', result, value, count)
       if (callback.block) callback.block.update(count > 0);
       return count > 0;
     });
@@ -315,8 +317,26 @@ LSD.Array.prototype = {
        result.push(value);
     }
     return result;
+  },
+  
+  __fireEvent: function(key, a, b, c, d, e) {
+    var storage = this._events;
+    if (storage) {
+      var collection = storage[key];
+      if (collection) for (var i = 0, j = collection.length, fn; i < j; i++) {
+        var fn = collection[i];
+        if (!fn) continue;
+        var result = fn.call(this, a, b, c, d, e);
+        if (result != null) a = result;
+      }
+    }
+    return a;
   }
 };
+
+Object.each(LSD.Object.Events, function(value, name) {
+  LSD.Array.prototype[name] = value;
+});
 
 LSD.Array.prototype['<<'] = LSD.Array.prototype.push;
 LSD.Array.prototype['+'] = LSD.Array.prototype.concat;
