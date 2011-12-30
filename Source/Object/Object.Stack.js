@@ -40,13 +40,25 @@ LSD.Object.Stack.prototype = {
   _constructor: LSD.Object.Stack,
   
   set: function(key, value, memo, prepend) {
-    if (this._transform) value = this._transform(key, value);
-    var index = key.indexOf('.');
-    if (index == -1) {
+    if (typeof key != 'string') {
+      var hash = this._hash(key);
+      if (typeof hash == 'string') {
+        key = hash;
+        var index = key.indexOf('.');
+      } else {
+        if (hash == null) return;
+        var group = hash;
+      }
+    } else {
+      var index = key.indexOf('.');
+    }
+    if (group == null && index === -1) {
       var stack = this._stack;
       if (!stack) stack = this._stack = {};
       var group = stack[key];
       if (!group) group = stack[key] = []
+    }
+    if (group != null) {
       var length = (prepend || value == null) ? group.unshift(value) : group.push(value);
       value = group[length - 1];
     }
@@ -54,12 +66,24 @@ LSD.Object.Stack.prototype = {
       return LSD.Object.prototype.set.call(this, key, value, memo, index);
   },
   unset: function(key, value, memo, prepend) {
-    if (this._transform) value = this._transform(key, value);
-    var index = key.indexOf('.');
-    if (index == -1) {
+    if (typeof key != 'string') {
+      var hash = this._hash(key);
+      if (typeof hash == 'string') {
+        key = hash;
+        var index = key.indexOf('.');
+      } else {
+        if (hash == null) return;
+        var group = hash;
+      }
+    } else {
+      var index = key.indexOf('.');
+    }
+    if (group == null && index === -1) {
       var group = this._stack[key];
       if (!group) return;
       var length = group.length;
+    }
+    if (group != null) {
       if (prepend) {
         for (var i = 0, j = length; i < j; i++)
           if (group[i] === value) {
