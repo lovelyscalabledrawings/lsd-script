@@ -73,7 +73,7 @@ LSD.Script.Function.prototype = {
   unexecute: function() {
     var name = this.name;
     if (!name) return;
-    var revert = LSD.Script.Revertable[name] || LSD.Negation[name];
+    var revert = LSD.Script.Revertable[name]// || LSD.Negation[name];
     if (!revert && LSD.Script.Evaluators[name]) revert = name;
     if (!revert && !LSD.Script.Operators[name]) revert = 'un' + name;
     if (!revert) return
