@@ -11,8 +11,6 @@ authors: Yaroslaff Fedin
 
 requires:
   - LSD.Object
-  - LSD.Object.Stack
-  - LSD.Object.Group
 
 provides:
   - LSD.Struct
