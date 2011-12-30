@@ -136,3 +136,13 @@ LSD.Struct.Group = function(properties) {
   properties._constructor = LSD.Object.Group;
   return LSD.Struct(properties)
 }
+
+/*
+  A struct based on observable array
+*/
+
+LSD.Struct.Array = function(properties) {
+  if (!properties) properties = {};
+  properties._constructor = LSD.Array;
+  return LSD.Struct(properties)
+}
