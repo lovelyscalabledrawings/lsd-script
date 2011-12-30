@@ -29,28 +29,20 @@ LSD.Struct = function(properties) {
       var constructor = properties._constructor
       delete properties._constructor;
     } else constructor = LSD.Object;
-    var Struct = function() {
-      LSD.Struct.constructor.call(this, properties, arguments)
+    var Struct = function(object) {
+      if (properties) this._properties = this._toObject = properties;
+      this._length = 0;
+      if (object != null) this.mix(object)
+      if (properties && properties.initialize) properties.initialize.apply(this, Array.prototype.slice.call(args, 1));
+      if (this.initialize) this.initialize.apply(this, Array.prototype.slice.call(args, 1));
     };
     Struct.prototype = Object.append(new (constructor || LSD.Object), new LSD.Struct);
     if (!Struct.prototype._constructor) 
       Struct.prototype._constructor = LSD.Object;
+    Struct.prototype.__constructor = Struct;
     return Struct;
   }
-  if (properties) {
-    if (properties.initialize) {
-      this._initialize = properties.initialize;
-      delete properties.initialize;
-    }
-    this._properties = this._toObject = properties;
-  };
-};
-
-LSD.Struct.constructor = function(properties, args) {
-  LSD.Struct.call(this, properties)
-  if (arguments.length) LSD.Object.apply(this, args);
-  if (this._initialize) this._initialize.apply(this, Array.prototype.slice.call(args, 1));
-  if (this.initialize) this.initialize.apply(this, Array.prototype.slice.call(args, 1));
+  if (properties) this._properties = this._toObject = properties;
 };
 
 LSD.Struct.prototype = {
