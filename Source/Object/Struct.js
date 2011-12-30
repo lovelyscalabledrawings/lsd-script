@@ -64,7 +64,7 @@ LSD.Struct.prototype = {
         case 'function':
           var constructor = prop.prototype && prop.prototype._constructor;
           if (constructor) {
-            if (state && typeof this[name] == 'undefined') this.construct(name, prop, memo)
+            if (state && typeof this[name] == 'undefined') this._construct(name, prop, memo)
           } else {
             if (state) return prop.call(this, value, old);
             else return prop.call(this, undefined, value);
@@ -91,7 +91,7 @@ LSD.Struct.prototype = {
   implement: function(object) {
     for (var name in object) this.prototype[name] = object[name]
   },
-  construct: function(name, property, memo) {
+  _construct: function(name, property, memo) {
     var property = this._properties && this._properties[name];
     if (typeof property == 'string') {
       if (!this._observed) this._observed = {};
@@ -101,8 +101,8 @@ LSD.Struct.prototype = {
       }
       return (this[name] || (this[name] = this.get(property, true)))
     }
-    if (this.delegate && !memo) memo = this;
-    return LSD.Object.prototype.construct.call(this, name, property, memo);
+    if (this._delegate && !memo) memo = this;
+    return LSD.Object.prototype._construct.call(this, name, property, memo);
   },
   _getConstructor: function(name) {
     var object = this._properties;
