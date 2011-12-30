@@ -31,8 +31,9 @@ provides:
   A paired `unset` having nothing to unset will silently do nothing.
 */
 
-LSD.Object.Stack = function() {
-  LSD.Object.apply(this, arguments);
+LSD.Object.Stack = function(object) {
+  this._length = 0;
+  if (object != null) this.mix(object)
 };
 
 LSD.Object.Stack.prototype = {
