@@ -25,18 +25,24 @@ provides:
 */
 
 LSD.Array = function(arg) {
-  this.length = 0;
-  var j = arguments.length;
-  if (j == 1) {
-    if (arg != null && !arg.match && Type.isEnumerable(arg)) {
-      for (var i = 0, k = arg.length; i < k; i++)
-        this.push(arg[i]);
-    } else {
-      this.push(arg);
-    }
+  if (!this.push) {
+    var array = new LSD.Array;
+    array.push.apply(array, arguments);
+    return array;
   } else {
-    for (var i = 0; i < j; i++) 
-      this.push(arguments[i]);
+    this.length = 0;
+    var j = arguments.length;
+    if (j == 1) {
+      if (arg != null && !arg.match && Type.isEnumerable(arg)) {
+        for (var i = 0, k = arg.length; i < k; i++)
+          this.push(arg[i]);
+      } else {
+        this.push(arg);
+      }
+    } else {
+      for (var i = 0; i < j; i++) 
+        this.push(arguments[i]);
+    }
   }
 };
 
