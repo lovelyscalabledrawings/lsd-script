@@ -64,7 +64,13 @@ LSD.Array.prototype = {
     } else {
       this[index] = value;
       if (index + 1 > this.length) this.length = index + 1;
-      value = this.__fireEvent('set', value, index, true, old);
+      var watchers = this.__watchers;
+      if (watchers) for (var i = 0, j = watchers.length, fn; i < j; i++) {
+        var fn = watchers[i];
+        if (!fn) continue;
+        var result = fn.call(this, value, index, true, old, memo);
+        if (result != null) value = result;
+      }
       if (this._onSet) this._onSet(value, index, true, old, memo);
       if (this.onSet) this.onSet(value, index, true, old, memo);
       return value;
@@ -78,7 +84,13 @@ LSD.Array.prototype = {
     } else {
       delete this[index];
       if (index + 1 == this.length) this.length = index;
-      value = this.__fireEvent('set', value, index, false, old);
+      var watchers = this.__watchers;
+      if (watchers) for (var i = 0, j = watchers.length, fn; i < j; i++) {
+        var fn = watchers[i];
+        if (!fn) continue;
+        var result = fn.call(this, value, index, false, old, memo);
+        if (result != null) value = result;
+      }
       if (this._onSet) this._onSet(value, index, false, old, memo);
       if (this.onSet) this.onSet(value, index, false, old, memo);
       return value;
@@ -152,16 +164,22 @@ LSD.Array.prototype = {
     return this.splice.apply(this, [0, 0].concat(Array.prototype.slice.call(arguments, 0)))
   },
   
-  watch: function(callback) {
+  watch: function(callback, fn) {
+    if (typeof fn == 'function') return this._watch(callback, fn);
     for (var i = 0, j = this.length >>> 0; i < j; i++)
       callback.call(this, this[i], i, true);
-    this._addEvent('set', callback);
+    var watchers = this.__watchers;
+    if (!watchers) watchers = this.__watchers = [];
+    watchers.push(callback);
   },
   
-  unwatch: function(callback) {
+  unwatch: function(callback, fn) {
+    if (typeof fn == 'function') return this._unwatch(callback, fn);
     for (var i = 0, j = this.length >>> 0; i < j; i++)
       callback.call(this, this[i], i, false);
-    this._removeEvent('set', callback);
+    var watchers = this.__watchers;
+    var index = watchers.indexOf(callback);
+    watchers.splice(index, 1);
   },
   
   iterate: function(block, callback, state) {
@@ -317,26 +335,8 @@ LSD.Array.prototype = {
        result.push(value);
     }
     return result;
-  },
-  
-  __fireEvent: function(key, a, b, c, d, e) {
-    var storage = this._events;
-    if (storage) {
-      var collection = storage[key];
-      if (collection) for (var i = 0, j = collection.length, fn; i < j; i++) {
-        var fn = collection[i];
-        if (!fn) continue;
-        var result = fn.call(this, a, b, c, d, e);
-        if (result != null) a = result;
-      }
-    }
-    return a;
   }
 };
-
-Object.each(LSD.Object.Events, function(value, name) {
-  LSD.Array.prototype[name] = value;
-});
 
 LSD.Array.prototype['<<'] = LSD.Array.prototype.push;
 LSD.Array.prototype['+'] = LSD.Array.prototype.concat;

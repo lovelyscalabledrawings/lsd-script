@@ -63,13 +63,19 @@ LSD.Object.prototype = {
           value = this.onChange(key, value, true, old, memo);
           if (value != null && value._constructor && !value._parent)
             value.set('_parent', this);
-        var changed = this._fireEvent('change', key, value, true, old, memo);
+        var watchers = this._watchers;
+        if (watchers) for (var i = 0, j = watchers.length, changed, fn; i < j; i++) {
+          var fn = watchers[i];
+          if (!fn) continue;
+          var result = fn.call(this, key, value, true, old, memo);
+          if (result != null) changed = result;
+        }
         if (!odef) this._length++;
         if (changed === false && value !== false) {
           this[key] = old;
           return false;
         } else {
-          value = changed;
+          if (typeof changed != 'undefined') value = changed;
           if (!immutable) this[key] = value;
         }
       }
@@ -114,7 +120,13 @@ LSD.Object.prototype = {
           value = this.onChange(key, old, false, undefined);
         if (value != null && value._constructor && value._parent === this) 
           value.unset('_parent', this);
-        this._fireEvent('change', key, old, false, undefined, memo);
+        var watchers = this._watchers;
+        if (watchers) for (var i = 0, j = watchers.length, changed, fn; i < j; i++) {
+          var fn = watchers[i];
+          if (!fn) continue;
+          var result = fn.call(this, key, old, false, undefined, memo);
+          if (result != null) changed = result;
+        }
         this._length--;
       }  
       var watched = this._watched;
@@ -155,12 +167,12 @@ LSD.Object.prototype = {
   
   mix: function(name, value, state, reverse, merge, memo) {
     if (!memo && this._delegate) memo = this;
-    if (!name.indexOf) {
+    if (typeof name != 'string') {
       for (var prop in name)
         if (typeof name.has == 'function' ? name.has(prop) : name.hasOwnProperty(prop))
           this.mix(prop, name[prop], state, reverse, merge, memo);
     } else {
-      if (typeOf(value) === 'object' && (!value._constructor || merge)) {
+      if (typeOf(value) == 'object' && (!value._constructor || merge)) {
         var obj = this[name];
         var storage = (this._stored || (this._stored = {}));
         var group = storage[name];
@@ -195,22 +207,20 @@ LSD.Object.prototype = {
   },
   
   merge: function(object, reverse, memo) {
-    if (object.watch && object._addEvent) {
+    if (object.watch && typeof object.has == 'function') {
       var self = this;
       var watcher = function(name, value, state, old) {
         if (state) self.mix(name, value, true, reverse, true);
         if (self._stack && (!state || old != null)) self.mix(name, state ? old : value, false, reverse, true);
       }
       watcher.callback = this;
-      object._addEvent('change', watcher);
+      object.watch(watcher);
     }
     this.mix(object, null, true, reverse, true, memo);
   },
   
   unmerge: function(object, reverse, memo) {
-    if (object.unwatch && object._removeEvent) {
-      object._removeEvent('change', this);
-    }
+    object.unwatch(this);
     this.mix(object, null, false, reverse, true, memo);
   },
   
@@ -228,44 +238,74 @@ LSD.Object.prototype = {
   },
   
   watch: function(key, callback, lazy) {
-    var index = key.indexOf('.');
-    if (index > -1) {
-      var finder = function(value, old) {
-        var object = value == null ? old : value;
-        if (object.watch && object.merge) {
-          object[value ? 'watch' : 'unwatch'](key.substring(index + 1), callback, lazy);
-        } else if (value != null) {
-          for (var dot, start; dot != -1;) {
-            start = (dot || index) + 1;
-            dot = key.indexOf('.', start)
-            var subkey = key.substring(start, dot == -1 ? key.length : dot);
-            var result = object.get ? object.get(subkey, lazy === false) : object[subkey];
-            if (result != null) {
-              if (dot != -1) {
-                if (result.watch && result.merge) {
-                  return result[value ? 'watch' : 'unwatch'](key.substring(dot + 1), callback, lazy);
-                } else {
-                  object = object[subkey];
-                }
-              } else callback(result);
-            } else break;
+    switch (typeof key) {
+      case 'function':
+        var watchers = this._watchers;
+        if (!watchers) watchers = this._watchers = [];
+        if (callback) watchers.unshift(key)
+        else watchers.push(key);
+        break;
+      case 'object':
+        var hash = this._hash(key);
+        if (typeof hash == 'string') key = hash
+        else if (hash == null) return;
+        else return hash.watch(key, callback);
+      default:
+        var index = key.indexOf('.');
+        if (index > -1) {
+          var finder = function(value, old) {
+            var object = value == null ? old : value;
+            if (typeof object._watch == 'function') {
+              object[value ? '_watch' : '_unwatch'](key.substring(index + 1), callback, lazy);
+            } else if (value != null) {
+              for (var dot, start; dot != -1;) {
+                start = (dot || index) + 1;
+                dot = key.indexOf('.', start)
+                var subkey = key.substring(start, dot == -1 ? key.length : dot);
+                var result = object.get ? object.get(subkey, lazy === false) : object[subkey];
+                if (result != null) {
+                  if (dot != -1) {
+                    if (typeof object._watch == 'function') {
+                      return result[value ? '_watch' : '_unwatch'](key.substring(dot + 1), callback, lazy);
+                    } else {
+                      object = object[subkey];
+                    }
+                  } else callback(result);
+                } else break;
+              }
+            }
+          };
+          finder.callback = callback;
+          this.watch(key.substr(0, index) || '_parent', finder, lazy)
+        } else {  
+          var value = this.get(key, lazy === false);
+          var watched = (this._watched || (this._watched = {}));
+          (watched[key] || (watched[key] = [])).push(callback);
+          if (!lazy && value != null) {
+            if (callback.call) callback(value);
+            else LSD.Object.callback(this, callback, key, value, undefined);
           }
         }
-      };
-      finder.callback = callback;
-      this.watch(key.substr(0, index) || '_parent', finder, lazy)
-    } else {  
-      var value = this.get(key, lazy === false);
-      var watched = (this._watched || (this._watched = {}));
-      (watched[key] || (watched[key] = [])).push(callback);
-      if (!lazy && value != null) {
-        if (callback.call) callback(value);
-        else LSD.Object.callback(this, callback, key, value, undefined);
-      }
     }
   },
   
   unwatch: function(key, callback) {
+    if (typeof key != 'string') {
+      if (typeof callback != 'function') {
+        var watchers = this._watchers;
+        for (var i = 0, j = watchers.length, changed, fn; i < j; i++) {
+          var fn = watchers[i];
+          if (fn !== key || (fn != null && fn.callback == key)) continue;
+          watchers.splice(i, 1);
+          break;
+        }
+        return this;
+      }
+      var hash = this._hash(key);
+      if (typeof hash == 'string') key = hash
+      else if (hash == null) return;
+      else return hash.unwatch(key, callback);
+    }
     var index = key.indexOf('.');
     if (index > -1) {
       this.unwatch(key.substr(0, index) || '_parent', callback)
@@ -318,45 +358,12 @@ LSD.Object.join = function(object) {
     if (object.has ? object.has(key) : object.hasOwnProperty(key))
       ary.push(key);
   return ary.join(separator)
-}
-
-LSD.Object.prototype.reset = LSD.Object.prototype._set = LSD.Object.prototype.set;
-LSD.Object.prototype._unset = LSD.Object.prototype.unset;
-
-LSD.Object.Events = {
-  fireEvent: function(key, a, b, c, d, e) {
-    var storage = this._events;
-    if (storage) {
-      var collection = storage[key];
-      if (collection) for (var i = 0, j = collection.length, fn; i < j; i++) {
-        var fn = collection[i];
-        if (!fn) continue;
-        var result = fn.call(this, a, b, c, d, e);
-        if (result != null) b = result;
-      }
-    }
-    return b;
-  },
-  
-  addEvent: function(key, callback, unshift) {
-    var storage = this._events;
-    if (!storage) storage = this._events = {};
-    (storage[key] || (storage[key] = []))[unshift ? 'unshift' : 'push'](callback);
-    return this;
-  },
-  
-  removeEvent: function(key, callback) {
-    var group = this._events[key]
-    for (var j = group.length; --j > -1;) {
-      var listener = group[j];
-      if (listener === callback || listener.callback === callback) {
-        group.splice(j, 1);
-        break;
-      }
-    }
-    return this;
-  }
 };
+
+['set', 'unset', 'watch', 'unwatch'].each(function(method) {
+  LSD.Object.prototype['_' + method] = LSD.Object.prototype[method];
+});
+LSD.Object.prototype.reset = LSD.Object.prototype.set;
 
 Object.each(LSD.Object.Events, function(value, name) {
   LSD.Object.Events['_' + name] = value;
