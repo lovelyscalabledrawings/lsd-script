@@ -1,9 +1,9 @@
 /*
 ---
  
-script: Object.js
+script: Array.js
  
-description: An observable object 
+description: An observable array 
  
 license: Public domain (http://unlicense.org).
 
@@ -11,6 +11,7 @@ authors: Yaroslaff Fedin
  
 requires:
   - LSD.Object
+  - LSD.Struct
   
 provides:
   - LSD.Array
@@ -46,7 +47,7 @@ LSD.Array = function(arg) {
   }
 };
 
-LSD.Array.prototype = {
+LSD.Array.prototype = Object.append(new LSD.Object, {
   _constructor: LSD.Array,
   
   push: function() {
@@ -60,7 +61,7 @@ LSD.Array.prototype = {
   set: function(key, value, old, memo) {
     var index = parseInt(key);
     if (index != index) { //NaN
-      return LSD.Object.prototype.set.call(this, key, value, memo);
+      return this._set(key, value, memo);
     } else {
       this[index] = value;
       if (index + 1 > this.length) this.length = index + 1;
@@ -80,7 +81,7 @@ LSD.Array.prototype = {
   unset: function(key, value, old, memo) {
     var index = parseInt(key);
     if (index != index) { //NaN
-      return LSD.Object.prototype.unset.call(this, key, value, memo);
+      return this._unset(key, value, memo);
     } else {
       delete this[index];
       if (index + 1 == this.length) this.length = index;
@@ -98,11 +99,11 @@ LSD.Array.prototype = {
   },
   
   indexOf: function(object, from) {
-    var id = typeof object == 'object' ? LSD.getID(object) : object;
+    var hash = typeof object == 'object' && this._hash ? this._hash(object) : object;
     var length = this.length >>> 0;
     for (var i = (from < 0) ? Math.max(0, length + from) : from || 0; i < length; i++) {
       var value = this[i];
-      if ((id != null && (value != null && LSD.getID(value) == id)) || value === object) return i;
+      if (value === object || (this._hash && hash != null && value != null && this._hash(value) == hash)) return i;
     }
     return -1;
   },
@@ -285,8 +286,6 @@ LSD.Array.prototype = {
         if (!result) callback.watcher.result--
         values.splice(index, 1);
       }
-      //console.log([result, value, state], callback.watcher.result, [].concat(values), index, previous)
-      //if (window.$debug) debugger
       if (callback.block) callback.block.update(callback.watcher.result === 0);
       return callback.watcher.result === 0;
     });
@@ -335,8 +334,16 @@ LSD.Array.prototype = {
        result.push(value);
     }
     return result;
+  },
+
+  _hash: function(object) {
+    return typeof object._id != 'undefined' 
+      ? object._id 
+      : typeof object.id != 'undefined' 
+        ? object.id
+        : typeof object.$id != 'undefined' ? object.$id : null;
   }
-};
+});
 
 LSD.Array.prototype['<<'] = LSD.Array.prototype.push;
 LSD.Array.prototype['+'] = LSD.Array.prototype.concat;
@@ -348,8 +355,12 @@ LSD.Array.prototype['+'] = LSD.Array.prototype.concat;
   simple rules of Array behavior which are easy to emulate. LSD.Array
   obeys those rules, so those additional extra functions work out of the box.
 */
-!function() {
-  for (var method in Array.prototype) 
-    if (!LSD.Array.prototype[method]) 
-      LSD.Array.prototype[method] = Array.prototype[method];
-}();
+Object.each(Array.prototype, function(fn, method) {
+  if (!LSD.Array.prototype[method]) LSD.Array.prototype[method] = fn;
+});
+
+LSD.Struct.Array = function(properties) {
+  if (!properties) properties = {};
+  properties._constructor = LSD.Array;
+  return LSD.Struct(properties)
+}
