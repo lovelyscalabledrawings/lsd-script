@@ -11,6 +11,7 @@ authors: Yaroslaff Fedin
 
 requires:
   - LSD.Object
+  - LSD.Struct
 
 provides:
   - LSD.Object.Stack
@@ -59,8 +60,10 @@ LSD.Object.Stack.prototype = {
       if (!group) group = stack[key] = []
     }
     if (group != null) {
-      var length = (prepend || value == null) ? group.unshift(value) : group.push(value);
-      value = group[length - 1];
+      if (prepend || value == null) {
+        var length = group.unshift(value);
+        if (length > 1) value = group[length - 1];
+      } else group.push(value);
     }
     if (value !== this[key] || typeof value === 'undefined')
       return this._set(key, value, memo, index);
@@ -121,4 +124,19 @@ LSD.Object.Stack.prototype = {
   }
 };
 
+/*
+  Stack struct is a struct that has LSD.Object.Stack as a
+  base object. It remembers all values that were given
+  for each key, but uses only the last given value per key.
+  
+  This struct allows safe hash "unmerging".
+*/
+
+LSD.Struct.Stack = function(properties) {
+  if (!properties) properties = {};
+  properties._constructor = LSD.Object.Stack;
+  return LSD.Struct(properties)
+}
+
 LSD.Object.Stack.prototype = Object.append(new LSD.Object, LSD.Object.Stack.prototype)
+

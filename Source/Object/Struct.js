@@ -103,38 +103,3 @@ LSD.Struct.prototype = {
     return this._constructor;
   }
 };
-
-/*
-  Stack struct is a struct that has LSD.Object.Stack as a
-  base object. It remembers all values that were given
-  for each key, but uses only the last given value per key.
-  
-  This struct allows safe hash "unmerging".
-*/
-
-LSD.Struct.Stack = function(properties) {
-  if (!properties) properties = {};
-  properties._constructor = LSD.Object.Stack;
-  return LSD.Struct(properties)
-}
-
-/*
-  Group struct has LSD.Object.Group its base object. 
-  To put it simply, it's an hash of arrays. 
-*/
-
-LSD.Struct.Group = function(properties) {
-  if (!properties) properties = {};
-  properties._constructor = LSD.Object.Group;
-  return LSD.Struct(properties)
-}
-
-/*
-  A struct based on observable array
-*/
-
-LSD.Struct.Array = function(properties) {
-  if (!properties) properties = {};
-  properties._constructor = LSD.Array;
-  return LSD.Struct(properties)
-}
