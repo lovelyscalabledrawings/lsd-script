@@ -99,7 +99,7 @@ LSD.Object.prototype = {
     if (watchers) for (var i = 0, j = watchers.length, watcher, fn; i < j; i++) {
       if ((watcher = watchers[i]) == null) continue
       if (typeof watcher == 'function') watcher.call(this, key, value, true, old, memo, hash);
-      else LSD.Object.callback(this, watcher, key, value, true, old, memo, hash);
+      else this._callback(watcher, key, value, true, old, memo, hash);
     }
     if (index === -1) {
       if (hash == null && this[key] !== value) this[key] = value;
@@ -107,7 +107,7 @@ LSD.Object.prototype = {
       if (watched && (watched = watched[key]))
         for (var i = 0, fn; fn = watched[i++];)
           if (fn.call) fn.call(this, value, old);
-          else LSD.Object.callback(this, fn, key, value, old, memo, hash);
+          else this._callback(fn, key, value, old, memo, hash);
       var stored = this._stored && this._stored[key];
       if (stored != null) LSD.Object.restore(this, stored, key, value, old, memo, hash)
     } 
@@ -153,7 +153,7 @@ LSD.Object.prototype = {
       if (watchers) for (var i = 0, j = watchers.length, watcher, fn; i < j; i++) {
         if ((watcher = watchers[i]) == null) continue
         if (typeof watcher == 'function') watcher.call(this, key, old, false, undefined, memo, hash);
-        else LSD.Object.callback(this, watcher, key, old, false, undefined, memo, hash);
+        else this._callback(watcher, key, old, false, undefined, memo, hash);
       }
       this._length--;
     }
@@ -162,7 +162,7 @@ LSD.Object.prototype = {
       if (watched && (watched = watched[key]))
         for (var i = 0, fn; fn = watched[i++];)
           if (fn.call) fn.call(this, undefined, old);
-          else LSD.Object.callback(this, fn, key, undefined, old, memo);
+          else this._callback(fn, key, undefined, old, memo);
       if (hash == null) delete this[key];
       var stored = this._stored && this._stored[key];
       if (stored != null) LSD.Object.restore(this, stored, key, undefined, value);
@@ -239,19 +239,19 @@ LSD.Object.prototype = {
   },
   
   merge: function(object, reverse, memo) {
-    if (object.watch && typeof object.has == 'function') {
+    if (object.watch && typeof object.has == 'function')
       object.watch({
         fn: this._merger,
         bind: this,
         callback: this,
         reverse: reverse
       });
-    }
     this.mix(object, null, true, reverse, true, memo);
   },
   
   unmerge: function(object, reverse, memo) {
-    object.unwatch(this);
+    if (object.watch && typeof object.has == 'function')
+      object.unwatch(this);
     this.mix(object, null, false, reverse, true, memo);
   },
   
@@ -290,7 +290,7 @@ LSD.Object.prototype = {
         (watched[key] || (watched[key] = [])).push(callback);
         if (!lazy && value != null) {
           if (callback.call) callback(value);
-          else LSD.Object.callback(this, callback, key, value, undefined);
+          else this._callback(callback, key, value, undefined);
         }
       }
     }
@@ -335,7 +335,7 @@ LSD.Object.prototype = {
           watched.splice(i, 1);
           if (value != null) {
             if (typeof fn == 'function') fn(undefined, value);
-            else LSD.Object.callback(this, fn, key, undefined, value);
+            else this._callback(fn, key, undefined, value);
           }
           break;
         }
@@ -387,15 +387,112 @@ LSD.Object.prototype = {
     if (this._stack && (!state || old != null)) this.mix(name, state ? old : value, false, call.reverse, true);
   },
   
+  _restore: function(object, stored, key, value, old, memo) {
+    for (var i = 0, j = stored.length; i < j; i++) {
+      var item = stored[i], val = item[0], memoed = item[1];
+      if (old != null && (!memoed || !memoed._delegate || !memoed._delegate(old, key, val, false, object)))
+        if (item[3]) old.unmerge(val, item[2], memoed)
+        else old.mix(val, null, false, true, item[3], memoed);
+      if (value != null && (!memoed || !memoed._delegate || !memoed._delegate(value, key, val, true, object)))
+        if (item[3]) value.merge(val, item[2], memoed)
+        else value.mix(val, null, true, true, item[3], memoed);
+    }
+  },
+  
+  _callback: function(callback, key, value, old, memo, obj) {
+    if (callback.substr) var subject = this, property = callback;
+    else if (callback.watch && callback.set) var subject = callback, property = key;
+    else if (callback.push) var subject = callback[0], property = callback[1];
+    else if (typeof callback.fn == 'function') {
+      return callback.fn.call(callback.bind || this, callback, key, value, old, memo, obj);
+    } else throw "Callbacks should be either functions, strings, thiss, or [this, string] arrays"
+    if (property === true || property == false) property = key;
+    // check for circular calls
+    if (memo != null && memo.push) {
+      for (var i = 0, a; a = memo[i++];)
+        if (a[0] == this && a[1] == property) return;
+    } else memo = [];
+    memo.push([this, key]);
+    var vdef = typeof value != 'undefined';
+    var odef = typeof old != 'undefined';
+    if ((vdef || !odef) && (value !== callback[2])) subject.set(property, value, memo);
+    if (!vdef || (odef && this._stack)) subject.unset(property, old, memo);
+  },
+  
   toString: function() {
     var string = '{';
     for (var property in this)
       if (this.has(property))
         string += property + ': ' + this[property];
     return string + '}'
+  },
+
+  /*
+    A function that recursively cleans LSD.Objects and returns
+    plain object copy of the values
+  */
+  toObject: function(normalize, serializer) {
+    if (this === LSD.Object || this === LSD)
+      var obj = normalize, normalize = serializer, serializer = arguments[2];
+    else 
+      var obj = this;
+    if (obj == null) return null;
+    if (obj._toObject) {
+      if (obj._toObject.call) {
+        return obj._toObject.apply(obj, arguments);
+      } else if (obj._toObject.push) {
+        var object = {};
+        for (var i = 0, prop; prop = obj._toObject[i++];)
+          if (obj[prop]) {
+            var val = LSD.toObject(obj[prop], normalize, serializer);
+            if (!normalize || typeof val != 'undefined')
+              object[prop] = val;
+          }
+      } else {
+        var object = {};
+        for (var prop in obj) 
+          if (prop in obj._toObject) {
+            var val = LSD.toObject(obj[prop], normalize, serializer);
+            if (!normalize || typeof val != 'undefined')
+              object[prop] = val;
+          }
+      }
+    } else if (obj.lsd && obj.nodeType) {
+      if (serializer === true) {
+        return obj;
+      } else if (typeof serializer == 'function') {
+        return serializer(obj, normalize)
+      } else {
+        if (!obj.toData) return;
+        return obj.toData();
+      }
+    } else if (obj.push) {
+      if (obj.toObject) {
+        var object = obj.toObject(normalize, serializer)
+      } else {
+        var object = [];
+        for (var i = 0, j = obj.length; i < j; i++)
+          object[i] = LSD.toObject(obj[i], normalize, serializer);
+      }
+    } else if (obj.setDate) {
+      return obj.toString();
+    } else if (!obj.indexOf && typeof obj == 'object') {
+      var object = {};
+      for (var key in obj)
+        if (typeof obj.has == 'function' ? obj.has(key) : obj.hasOwnProperty(key)) {
+          var val = obj[key];
+          val = (val == null || val.exec || typeof val != 'object') ? val : LSD.toObject(val, normalize, serializer);
+          if (!normalize || typeof val != 'undefined') 
+            object[key] = val;
+        }
+    }
+    return object || obj;
   }
 };
 
+LSD.toObject = LSD.Object.toObject = LSD.Object.prototype.toObject;
+LSD.Object.callback = LSD.Object.prototype._callback;
+LSD.Object.restore = LSD.Object.prototype._restore;
 LSD.Object.join = function(object) {
   var ary = [];
   for (var key in object)
@@ -408,99 +505,3 @@ LSD.Object.join = function(object) {
   LSD.Object.prototype['_' + method] = LSD.Object.prototype[method];
 });
 LSD.Object.prototype.reset = LSD.Object.prototype.set;
-
-/*
-  A function that recursively cleans LSD.Objects and returns
-  plain object copy of the values
-*/
-
-LSD.toObject = LSD.Object.toObject = LSD.Object.prototype.toObject = function(normalize, serializer) {
-  if (this === LSD.Object || this === LSD)
-    var obj = normalize, normalize = serializer, serializer = arguments[2];
-  else 
-    var obj = this;
-  if (obj == null) return null;
-  if (obj._toObject) {
-    if (obj._toObject.call) {
-      return obj._toObject.apply(obj, arguments);
-    } else if (obj._toObject.push) {
-      var object = {};
-      for (var i = 0, prop; prop = obj._toObject[i++];)
-        if (obj[prop]) {
-          var val = LSD.toObject(obj[prop], normalize, serializer);
-          if (!normalize || typeof val != 'undefined')
-            object[prop] = val;
-        }
-    } else {
-      var object = {};
-      for (var prop in obj) 
-        if (prop in obj._toObject) {
-          var val = LSD.toObject(obj[prop], normalize, serializer);
-          if (!normalize || typeof val != 'undefined')
-            object[prop] = val;
-        }
-    }
-  } else if (obj.lsd && obj.nodeType) {
-    if (serializer === true) {
-      return obj;
-    } else if (typeof serializer == 'function') {
-      return serializer(obj, normalize)
-    } else {
-      if (!obj.toData) return;
-      return obj.toData();
-    }
-  } else if (obj.push) {
-    if (obj.toObject) {
-      var object = obj.toObject(normalize, serializer)
-    } else {
-      var object = [];
-      for (var i = 0, j = obj.length; i < j; i++)
-        object[i] = LSD.toObject(obj[i], normalize, serializer);
-    }
-  } else if (obj.setDate) {
-    return obj.toString();
-  } else if (!obj.indexOf && typeof obj == 'object') {
-    var object = {};
-    for (var key in obj)
-      if (typeof obj.has == 'function' ? obj.has(key) : obj.hasOwnProperty(key)) {
-        var val = obj[key];
-        val = (val == null || val.exec || typeof val != 'object') ? val : LSD.toObject(val, normalize, serializer);
-        if (!normalize || typeof val != 'undefined') 
-          object[key] = val;
-      }
-  }
-  return object || obj;
-}
-
-LSD.Object.callback = function(object, callback, key, value, old, memo, obj) {
-  if (callback.substr) var subject = object, property = callback;
-  else if (callback.watch && callback.set) var subject = callback, property = key;
-  else if (callback.push) var subject = callback[0], property = callback[1];
-  else if (typeof callback.fn == 'function') {
-    return callback.fn.call(callback.bind || object, callback, key, value, old, memo, obj);
-  } else throw "Callbacks should be either functions, strings, objects, or [object, string] arrays"
-  if (property === true || property == false) property = key;
-  // check for circular calls
-  if (memo != null && memo.push) {
-    for (var i = 0, a; a = memo[i++];)
-      if (a[0] == object && a[1] == property) return;
-  } else memo = [];
-  memo.push([object, key]);
-  var vdef = typeof value != 'undefined';
-  var odef = typeof old != 'undefined';
-  if ((vdef || !odef) && (value !== callback[2])) subject.set(property, value, memo);
-  if (!vdef || (odef && LSD.Object.Stack && subject.set === LSD.Object.Stack.prototype.set)) 
-    subject.unset(property, old, memo);
-};
-
-LSD.Object.restore = function(object, stored, key, value, old, memo) {
-  for (var i = 0, j = stored.length; i < j; i++) {
-    var item = stored[i], val = item[0], memoed = item[1];
-    if (old != null && (!memoed || !memoed._delegate || !memoed._delegate(old, key, val, false, object)))
-      if (item[3]) old.unmerge(val, item[2], memoed)
-      else old.mix(val, null, false, true, item[3], memoed);
-    if (value != null && (!memoed || !memoed._delegate || !memoed._delegate(value, key, val, true, object)))
-      if (item[3]) value.merge(val, item[2], memoed)
-      else value.mix(val, null, true, true, item[3], memoed);
-  }
-}
