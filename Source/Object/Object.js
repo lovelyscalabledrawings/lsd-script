@@ -26,11 +26,30 @@ LSD.Object = function(object) {
 LSD.Object.prototype = {
   _constructor: LSD.Object,
   
-  set: function(key, value, memo, index, immutable) {
-    if (typeof key == 'string') switch (index) {
-      case undefined: case null: case true: case false: 
-        index = key.indexOf('.');
+  set: function(key, value, memo, index, hash) {
+    /*
+      The values may be set by keys which types is not string.
+      A special method named `_hash` is called each time and can
+      return either string (a new key for value to be stored with)
+      or anything else (an object, or true). When hash is not string
+      the setter turns into immutable mode and only executes callbacks
+      without changing any keys. A callback may implement its own
+      strategy of storing values, as callbacks recieve result of hashing
+      as the last argument. 
+    */
+    if (typeof key != 'string') {
+      if (typeof hash == 'undefined') hash = this._hash(key);
+      if (typeof hash == 'string') {
+        key = hash;
+        hash = null;
+      }
     }
+    /*
+      A string in the key may contain dots `.` that denote nested
+      objects. If the nested object is not present at the time,
+      it builds it.
+    */
+    if (hash == null && typeof index != 'number') index = key.indexOf('.');
     if (index > -1) {
       for (var bit, end, obj = this, i = 0;;) {
         bit = key.substring(i, index) || '_parent';
@@ -49,52 +68,61 @@ LSD.Object.prototype = {
           } else break
         }
       }
-    } else {
-      if (!immutable) {
-        var old = this[key];
-        var odef = typeof old != 'undefined';
-        if (old === value && odef) return false;
-        this[key] = value;
+      return;
+    }  
+    /*
+      `hash` argument may disable all mutation caused by the setter,
+      the value by the key will not be mofified. May be used by subclasses
+      to implement its own mechanism of object mutations. 
+    */
+    if (hash == null) {
+      var old = this[key];
+      if (old === value) return false;
+      if (typeof old == 'undefined')
+        this._length++;
+      this[key] = value;
+    }
+    /*
+      Keys that start with `_` underscore do not trigger calls to global
+      object listeners. But they can be watched individually.
+    */
+    if (index !== -1 || key.charAt(0) != '_') {
+      if((typeof this._onChange == 'function' && typeof (value = this._onChange(key, value, true, old, memo, hash)) == 'undefined')
+      || (typeof this.onChange  == 'function' && typeof (value = this. onChange(key, value, true, old, memo, hash)) == 'undefined')) {
+        if (hash == null) this[key] = old;
+        return;
       }
-      if (key.charAt(0) != '_') {
-        if (this._onChange) 
-          value = this._onChange(key, value, true, old, memo);
-        if (this.onChange)
-          value = this.onChange(key, value, true, old, memo);
-          if (value != null && value._constructor && !value._parent)
-            value.set('_parent', this);
-        var watchers = this._watchers;
-        if (watchers) for (var i = 0, j = watchers.length, changed, fn; i < j; i++) {
-          var fn = watchers[i];
-          if (!fn) continue;
-          var result = fn.call(this, key, value, true, old, memo);
-          if (result != null) changed = result;
-        }
-        if (!odef) this._length++;
-        if (changed === false && value !== false) {
-          this[key] = old;
-          return false;
-        } else {
-          if (typeof changed != 'undefined') value = changed;
-          if (!immutable) this[key] = value;
-        }
-      }
-      var watched = this._watched && this._watched[key];
-      if (watched != null)
+      if (value != null && value._constructor && !value._parent)
+        value.set('_parent', this);
+    }
+    var watchers = this._watchers;
+    if (watchers) for (var i = 0, j = watchers.length, watcher, fn; i < j; i++) {
+      if ((watcher = watchers[i]) == null) continue
+      if (typeof watcher == 'function') watcher.call(this, key, value, true, old, memo, hash);
+      else LSD.Object.callback(this, watcher, key, value, true, old, memo, hash);
+    }
+    if (index === -1) {
+      if (hash == null && this[key] !== value) this[key] = value;
+      var watched = this._watched;
+      if (watched && (watched = watched[key]))
         for (var i = 0, fn; fn = watched[i++];)
           if (fn.call) fn.call(this, value, old);
-          else LSD.Object.callback(this, fn, key, value, old, memo);
+          else LSD.Object.callback(this, fn, key, value, old, memo, hash);
       var stored = this._stored && this._stored[key];
-      if (stored != null) LSD.Object.restore(this, stored, key, value, old)
-      return true;
-    }
+      if (stored != null) LSD.Object.restore(this, stored, key, value, old, memo, hash)
+    } 
+    return true;
   },
   
-  unset: function(key, value, memo, index, immutable) {
-    if (typeof key == 'string') switch (index) {
-      case undefined: case null: case true: case false:
-        index = key.indexOf('.');
+  unset: function(key, value, memo, index, hash) {
+    if (typeof key != 'string') {
+      if (typeof hash == 'undefined') hash = this._hash(key);
+      if (typeof hash == 'string') {
+        key = hash;
+        hash = null;
+      }
     }
+    if (hash == null && typeof index != 'number') index = key.indexOf('.');
     if (index > -1) {
       for (var bit, end, obj = this, i = 0;;) {
         bit = key.substring(i, index) || '_parent';
@@ -108,37 +136,38 @@ LSD.Object.prototype = {
           } else break
         }
       }
-    } else {  
-      var vdef = typeof value != 'undefined';
-      if (vdef) old = value;
-      else var old = this[key];
-      if (!immutable && typeof old == 'undefined' && vdef) return false;
-      if (key.charAt(0) != '_') {
-        if (this._onChange) 
-          value = this._onChange(key, old, false, undefined);
-        if (this.onChange)
-          value = this.onChange(key, old, false, undefined);
-        if (value != null && value._constructor && value._parent === this) 
-          value.unset('_parent', this);
-        var watchers = this._watchers;
-        if (watchers) for (var i = 0, j = watchers.length, changed, fn; i < j; i++) {
-          var fn = watchers[i];
-          if (!fn) continue;
-          var result = fn.call(this, key, old, false, undefined, memo);
-          if (result != null) changed = result;
-        }
-        this._length--;
-      }  
+      return;
+    }
+    var vdef = typeof value != 'undefined';
+    if (vdef) old = value;
+    else var old = this[key];
+    if (!hash && vdef && typeof old == 'undefined') return false;
+    if (index !== -1 || key.charAt(0) != '_') {
+      if (this._onChange && (value = this._onChange(key, old, false, undefined, memo, hash)) == null && old != null)
+        return false;
+      if (this.onChange && (value = this.onChange(key, old, false, undefined, memo, hash)) == null && old != null)
+        return false;
+      if (value != null && value._constructor && value._parent === this) 
+        value.unset('_parent', this);
+      var watchers = this._watchers;
+      if (watchers) for (var i = 0, j = watchers.length, watcher, fn; i < j; i++) {
+        if ((watcher = watchers[i]) == null) continue
+        if (typeof watcher == 'function') watcher.call(this, key, old, false, undefined, memo, hash);
+        else LSD.Object.callback(this, watcher, key, old, false, undefined, memo, hash);
+      }
+      this._length--;
+    }
+    if (index === -1) {
       var watched = this._watched;
       if (watched && (watched = watched[key]))
         for (var i = 0, fn; fn = watched[i++];)
           if (fn.call) fn.call(this, undefined, old);
           else LSD.Object.callback(this, fn, key, undefined, old, memo);
-      if (!immutable) delete this[key];
+      if (hash == null) delete this[key];
       var stored = this._stored && this._stored[key];
       if (stored != null) LSD.Object.restore(this, stored, key, undefined, value);
-      return true;
     }
+    return true;
   },
   
   get: function(key, construct) {
@@ -172,7 +201,10 @@ LSD.Object.prototype = {
         if (typeof name.has == 'function' ? name.has(prop) : name.hasOwnProperty(prop))
           this.mix(prop, name[prop], state, reverse, merge, memo);
     } else {
-      if (typeOf(value) == 'object' && (!value._constructor || merge)) {
+      if (typeof value == 'object' 
+      && typeof value.exec != 'function'
+      && typeof value.push != 'function'
+      && typeof value.nodeType != 'number' && (!value._constructor || merge)) {
         var obj = this[name];
         var storage = (this._stored || (this._stored = {}));
         var group = storage[name];
@@ -208,13 +240,12 @@ LSD.Object.prototype = {
   
   merge: function(object, reverse, memo) {
     if (object.watch && typeof object.has == 'function') {
-      var self = this;
-      var watcher = function(name, value, state, old) {
-        if (state) self.mix(name, value, true, reverse, true);
-        if (self._stack && (!state || old != null)) self.mix(name, state ? old : value, false, reverse, true);
-      }
-      watcher.callback = this;
-      object.watch(watcher);
+      object.watch({
+        fn: this._merger,
+        bind: this,
+        callback: this,
+        reverse: reverse
+      });
     }
     this.mix(object, null, true, reverse, true, memo);
   },
@@ -224,105 +255,90 @@ LSD.Object.prototype = {
     this.mix(object, null, false, reverse, true, memo);
   },
   
-  include: function(key, memo) {
-    return this.set(key, true, memo)
-  },
-  
-  erase: function(key, memo) {
-    return this.unset(key, true, memo)
-  },
-  
   write: function(key, value, memo) {
     if (value == null) this.unset(key, this[key], memo)
     else this.set(key, value, memo);
   },
   
   watch: function(key, callback, lazy) {
-    switch (typeof key) {
-      case 'function':
-        var watchers = this._watchers;
-        if (!watchers) watchers = this._watchers = [];
-        if (callback) watchers.unshift(key)
-        else watchers.push(key);
-        break;
-      case 'object':
-        var hash = this._hash(key);
+    var string = typeof key == 'string';
+    if (!string && typeof callback == 'undefined') {
+      var watchers = this._watchers;
+      if (!watchers) watchers = this._watchers = [];
+      if (callback) watchers.unshift(key)
+      else watchers.push(key);
+    } else {
+      if (!string) {
+        var hash = this._hash(key, callback);
         if (typeof hash == 'string') key = hash
         else if (hash == null) return;
+        else if (typeof hash.push == 'function') return hash.push(callback)
         else return hash.watch(key, callback);
-      default:
-        var index = key.indexOf('.');
-        if (index > -1) {
-          var finder = function(value, old) {
-            var object = value == null ? old : value;
-            if (typeof object._watch == 'function') {
-              object[value ? '_watch' : '_unwatch'](key.substring(index + 1), callback, lazy);
-            } else if (value != null) {
-              for (var dot, start; dot != -1;) {
-                start = (dot || index) + 1;
-                dot = key.indexOf('.', start)
-                var subkey = key.substring(start, dot == -1 ? key.length : dot);
-                var result = object.get ? object.get(subkey, lazy === false) : object[subkey];
-                if (result != null) {
-                  if (dot != -1) {
-                    if (typeof object._watch == 'function') {
-                      return result[value ? '_watch' : '_unwatch'](key.substring(dot + 1), callback, lazy);
-                    } else {
-                      object = object[subkey];
-                    }
-                  } else callback(result);
-                } else break;
-              }
-            }
-          };
-          finder.callback = callback;
-          this.watch(key.substr(0, index) || '_parent', finder, lazy)
-        } else {  
-          var value = this.get(key, lazy === false);
-          var watched = (this._watched || (this._watched = {}));
-          (watched[key] || (watched[key] = [])).push(callback);
-          if (!lazy && value != null) {
-            if (callback.call) callback(value);
-            else LSD.Object.callback(this, callback, key, value, undefined);
-          }
+      }
+      var index = key.indexOf('.');
+      if (index > -1) {
+        this.watch(key.substr(0, index) || '_parent', {
+          fn: this._watcher,
+          index: index,
+          key: key,
+          callback: callback,
+          lazy: lazy
+        }, lazy)
+      } else {  
+        var value = this.get(key, lazy === false);
+        var watched = (this._watched || (this._watched = {}));
+        (watched[key] || (watched[key] = [])).push(callback);
+        if (!lazy && value != null) {
+          if (callback.call) callback(value);
+          else LSD.Object.callback(this, callback, key, value, undefined);
         }
+      }
     }
   },
   
   unwatch: function(key, callback) {
-    if (typeof key != 'string') {
-      if (typeof callback != 'function') {
-        var watchers = this._watchers;
-        for (var i = 0, j = watchers.length, changed, fn; i < j; i++) {
-          var fn = watchers[i];
-          if (fn !== key || (fn != null && fn.callback == key)) continue;
-          watchers.splice(i, 1);
+    var string = typeof key == 'string';
+    if (!string && typeof callback == 'undefined') {
+      var watchers = this._watchers;
+      for (var i = 0, j = watchers.length, fn; i < j; i++) {
+        var fn = watchers[i];
+        if (fn !== key || (fn != null && fn.callback == key)) continue;
+        watchers.splice(i, 1);
+        break;
+      }
+    } else {
+      if (!string) {
+        var hash = this._hash(key, callback);
+        if (typeof hash == 'string') key = hash
+        else if (hash == null) return;
+        else if (typeof hash.splice == 'function') {
+          for (var i = hash.length, fn; i--;) {
+            if ((fn = hash[i]) == callback || fn.callback == callback) {
+              hash.splice(i, 1);
+              break;
+            }
+          }
+          return;
+        } else return hash.watch(key, callback);
+      }
+      var index = key.indexOf('.');
+      if (index > -1) {
+        this.unwatch(key.substr(0, index) || '_parent', callback)
+      } else if (this._watched) {
+        var watched = this._watched[key];
+        var value = this[key];
+        for (var i = 0, fn; fn = watched[i]; i++) {
+          var match = fn.callback || fn;
+          if (match.push) {
+            if (!callback.push || callback[0] != match[0] || callback[1] != match[1]) continue;
+          } else if (match != callback && fn != callback) continue;
+          watched.splice(i, 1);
+          if (value != null) {
+            if (typeof fn == 'function') fn(undefined, value);
+            else LSD.Object.callback(this, fn, key, undefined, value);
+          }
           break;
         }
-        return this;
-      }
-      var hash = this._hash(key);
-      if (typeof hash == 'string') key = hash
-      else if (hash == null) return;
-      else return hash.unwatch(key, callback);
-    }
-    var index = key.indexOf('.');
-    if (index > -1) {
-      this.unwatch(key.substr(0, index) || '_parent', callback)
-    } else if (this._watched) {
-      var watched = this._watched[key];
-      var value = this[key];
-      for (var i = 0, fn; fn = watched[i]; i++) {
-        var match = fn.callback || fn;
-        if (match.push) {
-          if (!callback.push || callback[0] != match[0] || callback[1] != match[1]) continue;
-        } else if (match != callback && fn != callback) continue;
-        watched.splice(i, 1);
-        if (value != null) {
-          if (callback.call) fn(undefined, value);
-          else LSD.Object.callback(this, callback, key, undefined, value);
-        }
-        break;
       }
     }
   },
@@ -341,6 +357,34 @@ LSD.Object.prototype = {
   
   _hash: function() {
     throw "The key for the value is not a string. Define _hash method for the object and implement the indexing strategy"
+  },
+  
+  _watcher: function(call, key, value, old, memo) {
+    var object = value == null ? old : value, key = call.key;
+    if (typeof object._watch == 'function') {
+      object[value ? '_watch' : '_unwatch'](key.substring(call.index + 1), call.callback, call.lazy);
+    } else if (value != null) {
+      for (var dot, start; dot != -1;) {
+        start = (dot || call.index) + 1;
+        dot = key.indexOf('.', start)
+        var subkey = call.key.substring(start, dot == -1 ? key.length : dot);
+        var result = object.get ? object.get(subkey, lazy === false) : object[subkey];
+        if (result != null) {
+          if (dot != -1) {
+            if (typeof object._watch == 'function') {
+              return result[value ? '_watch' : '_unwatch'](key.substring(dot + 1), call.callback, call.lazy);
+            } else {
+              object = object[subkey];
+            }
+          } else call.callback(result);
+        } else break;
+      }
+    }
+  },
+  
+  _merger: function(call, name, value, state, old) {
+    if (state) this.mix(name, value, true, call.reverse, true);
+    if (this._stack && (!state || old != null)) this.mix(name, state ? old : value, false, call.reverse, true);
   },
   
   toString: function() {
@@ -364,11 +408,6 @@ LSD.Object.join = function(object) {
   LSD.Object.prototype['_' + method] = LSD.Object.prototype[method];
 });
 LSD.Object.prototype.reset = LSD.Object.prototype.set;
-
-Object.each(LSD.Object.Events, function(value, name) {
-  LSD.Object.Events['_' + name] = value;
-  LSD.Object.prototype[name] = LSD.Object.prototype['_' + name] = value;
-});
 
 /*
   A function that recursively cleans LSD.Objects and returns
@@ -433,11 +472,13 @@ LSD.toObject = LSD.Object.toObject = LSD.Object.prototype.toObject = function(no
   return object || obj;
 }
 
-LSD.Object.callback = function(object, callback, key, value, old, memo) {
+LSD.Object.callback = function(object, callback, key, value, old, memo, obj) {
   if (callback.substr) var subject = object, property = callback;
   else if (callback.watch && callback.set) var subject = callback, property = key;
   else if (callback.push) var subject = callback[0], property = callback[1];
-  else throw "Callbacks should be either functions, strings, objects, or [object, string] arrays"
+  else if (typeof callback.fn == 'function') {
+    return callback.fn.call(callback.bind || object, callback, key, value, old, memo, obj);
+  } else throw "Callbacks should be either functions, strings, objects, or [object, string] arrays"
   if (property === true || property == false) property = key;
   // check for circular calls
   if (memo != null && memo.push) {
@@ -445,7 +486,7 @@ LSD.Object.callback = function(object, callback, key, value, old, memo) {
       if (a[0] == object && a[1] == property) return;
   } else memo = [];
   memo.push([object, key]);
-  var vdef = typeof value != 'undefined'
+  var vdef = typeof value != 'undefined';
   var odef = typeof old != 'undefined';
   if ((vdef || !odef) && (value !== callback[2])) subject.set(property, value, memo);
   if (!vdef || (odef && LSD.Object.Stack && subject.set === LSD.Object.Stack.prototype.set)) 
