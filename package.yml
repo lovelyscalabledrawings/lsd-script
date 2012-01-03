@@ -14,7 +14,6 @@ sources:
   - Source/Object/Object.Stack.js
   - Source/Object/Object.Params.js
   - Source/Object/Object.Group.js
-  - Source/Object/Object.Array.js
   - Source/Object/Struct.js
   - Source/Object/Array.js
   - Source/Variable/Scope.js
