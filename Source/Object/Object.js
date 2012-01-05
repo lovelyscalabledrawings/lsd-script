@@ -44,32 +44,8 @@ LSD.Object.prototype = {
         hash = null;
       }
     }
-    /*
-      A string in the key may contain dots `.` that denote nested
-      objects. If the nested object is not present at the time,
-      it builds it.
-    */
     if (hash == null && typeof index != 'number') index = key.indexOf('.');
-    if (index > -1) {
-      for (var bit, end, obj = this, i = 0;;) {
-        bit = key.substring(i, index) || '_parent';
-        i = index + 1;
-        if (!end) {
-          if (!obj[bit]) {
-            obj = obj._construct(bit)
-          } else {
-            obj = obj[bit];
-          }
-        } else obj.set(bit, value);
-        index = key.indexOf('.', i);
-        if (index == -1) {
-          if (!end && (end = true)) {
-            index = key.length;
-          } else break
-        }
-      }
-      return;
-    }  
+    if (index > -1) return this.mix(key, value, memo, true, null, null, index);
     /*
       `hash` argument may disable all mutation caused by the setter,
       the value by the key will not be mofified. May be used by subclasses
@@ -130,21 +106,7 @@ LSD.Object.prototype = {
       }
     }
     if (hash == null && typeof index != 'number') index = key.indexOf('.');
-    if (index > -1) {
-      for (var bit, end, obj = this, i = 0;;) {
-        bit = key.substring(i, index) || '_parent';
-        i = index + 1;
-        if (end) obj.unset(bit, value);
-        else obj = obj[bit];
-        index = key.indexOf('.', i);
-        if (index == -1) {
-          if (!end && (end = true)) {
-            index = key.length;
-          } else break
-        }
-      }
-      return;
-    }
+    if (index > -1) return this.mix(key, value, memo, false, null, null, index);
     var vdef = typeof value != 'undefined';
     if (vdef) old = value;
     else var old = this[key];
@@ -206,68 +168,70 @@ LSD.Object.prototype = {
     }
   },
   
-  mix: function(name, value, state, reverse, merge, memo) {
+  mix: function(key, value, memo, state, merge, prepend, index) {
     if (!memo && this._delegate) memo = this;
-    if (typeof name != 'string') {
-      for (var prop in name)
-        if (typeof name.has == 'function' ? name.has(prop) : name.hasOwnProperty(prop))
-          this.mix(prop, name[prop], state, reverse, merge, memo);
-    } else {
-      if (typeof value == 'object' 
-      && typeof value.exec != 'function'
-      && typeof value.push != 'function'
-      && typeof value.nodeType != 'number' && (!value._constructor || merge)) {
-        var obj = this[name];
-        var storage = (this._stored || (this._stored = {}));
-        var group = storage[name];
-        if (!group) group = storage[name] = [];
+    if (typeof key != 'string') {
+      if (merge) {
         if (state === false) {
-          for (var i = 0, j = group.length; i < j; i++) {
-            if (group[i][0] === value) {
+          key.unwatch(this);
+        } else {  
+          key.watch({
+            fn: this._merger,
+            bind: this,
+            callback: this,
+            prepend: prepend
+          })
+        }
+      }
+      var method = typeof key.has == 'function' ? 'has' : 'hasOwnProperty'
+      for (var prop in key) if (key[method](prop))
+        this.mix(prop, key[prop], memo, state, merge, prepend);
+    } else {
+      /*
+        A string in the key may contain dots `.` that denote nested
+        objects. The values are passed through to the related objects,
+        but they are also stored in original object, so whenever related
+        object reference is changed, the stored values are removed from 
+        old objects and applied to the new related object. 
+      */
+      if (typeof index != 'number') index = key.indexOf('.', typeof index == 'number' ? index: -1);
+      if ((index > -1 || (typeof value == 'object'  && typeof value.exec != 'function'
+      && typeof value.push != 'function' && typeof value.nodeType != 'number')) && (!value._constructor || merge)) {
+        var obj = this[key];
+        var storage = (this._stored || (this._stored = {}));
+        var group = storage[key];
+        if (!group) group = storage[key] = [];
+        if (state === false) {
+          for (var i = 0, j = group.length, k = +(index > -1); i < j; i++) {
+            if (group[i][k] === value) {
               group.splice(i, 1);
               break;
             }
           }
         } else {
-          group.push([value, memo, reverse, merge]);
+          // store either [object, null] or [key, value] to match .mix arguments
+          group.push([index > -1 ? key.substring(index + 1) : value, index > -1 ? value : null, memo, merge, prepend, index]);
         }
         if (obj == null) {
-          obj = this._construct(name, null, memo, value);
-          return;
+          if (state !== false) obj = this._construct(key, null, memo, value);
         } else if (obj.push) {
           for (var i = 0, j = obj.length; i < j; i++)
             obj[i].mix(value, null, memo, state, merge, prepend);
         } else {
           obj.mix(value, null, memo, state, merge, prepend);
         }
-        if (merge) obj[state !== false ? 'merge' : 'unmerge'](value, reverse, memo);
-        else obj.mix(value, null, state, reverse, false, memo);
       } else {
         this[state !== false ? 'set' : 'unset'](key, value, memo, prepend);
       }
     }
   },
   
-  merge: function(object, reverse, memo) {
-    if (object.watch && typeof object.has == 'function')
-      object.watch({
-        fn: this._merger,
-        bind: this,
-        callback: this,
-        reverse: reverse
-      });
-    this.mix(object, null, true, reverse, true, memo);
+  merge: function(value, prepend, memo) {
+    return this.mix(value, null, memo, true, true, prepend)
   },
   
-  unmerge: function(object, reverse, memo) {
-    if (object.watch && typeof object.has == 'function')
-      object.unwatch(this);
-    this.mix(object, null, false, reverse, true, memo);
-  },
-  
-  write: function(key, value, memo) {
-    if (value == null) this.unset(key, this[key], memo)
-    else this.set(key, value, memo);
+  unmerge: function(value, prepend, memo) {
+    return this.mix(value, null, memo, false, true, prepend)
   },
   
   watch: function(key, callback, lazy) {
@@ -312,8 +276,7 @@ LSD.Object.prototype = {
       var watchers = this._watchers;
       for (var i = 0, j = watchers.length, fn; i < j; i++) {
         var fn = watchers[i];
-        if (fn !== key || (fn != null && fn.callback == key)) continue;
-        watchers.splice(i, 1);
+        if (fn === key || (fn != null && fn.callback == key)) watchers.splice(i, 1);
         break;
       }
     } else {
@@ -414,7 +377,7 @@ LSD.Object.prototype = {
     var vdef = typeof value != 'undefined';
     var odef = typeof old != 'undefined';
     if ((vdef || !odef) && (value !== callback[2])) subject.set(property, value, memo);
-    if (!vdef || (odef && this._stack)) subject.unset(property, old, memo);
+    if (!vdef || (odef && subject._stack)) subject.unset(property, old, memo);
   },
   
   toString: function() {
@@ -489,16 +452,6 @@ LSD.Object.prototype = {
 };
 
 LSD.toObject = LSD.Object.toObject = LSD.Object.prototype.toObject;
-LSD.Object.callback = LSD.Object.prototype._callback;
-LSD.Object.restore = LSD.Object.prototype._restore;
-LSD.Object.join = function(object) {
-  var ary = [];
-  for (var key in object)
-    if (object.has ? object.has(key) : object.hasOwnProperty(key))
-      ary.push(key);
-  return ary.join(separator)
-};
-
 ['set', 'unset', 'watch', 'unwatch'].each(function(method) {
   LSD.Object.prototype['_' + method] = LSD.Object.prototype[method];
 });
