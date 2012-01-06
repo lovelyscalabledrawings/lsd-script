@@ -65,15 +65,6 @@ LSD.Struct.prototype = {
           }
           break;
         case 'string':
-          var stored = this._stored && this._stored[key];
-          if (stored != null && value != null) {
-            for (var i = 0, item; item = stored[i++];) {
-              if (value != null && (!item[2] || !item[2]._delegate || !item[2]._delegate(value, key, item[0], true, this)))
-                value.mix(item[0], item[1], memo, true, item[3], item[4]);
-              if (old != null && (!item[2] || !item[2]._delegate || !item[2]._delegate(old, key, item[0], false, this)))
-                old.mix(item[0], item[1], memo, false, item[3], item[4]);
-            }
-          }
       };
     }
     return value;

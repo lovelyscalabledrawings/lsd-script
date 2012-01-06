@@ -87,9 +87,9 @@ LSD.Object.prototype = {
       var stored = this._stored && this._stored[key];
       if (stored != null) {
         for (var i = 0, item; item = stored[i++];) {
-          if (value != null && (!item[2] || !item[2]._delegate || !item[2]._delegate(value, key, item[0], true, this)))
+          if (value != null && (!item[2] || !item[2]._delegate || !item[2]._delegate(value, key, item[0], true)))
             value.mix(item[0], item[1], item[2], true, item[3], item[4]);
-          if (old != null && (!item[2] || !item[2]._delegate || !item[2]._delegate(old, key, item[0], false, this)))
+          if (old != null && (!item[2] || !item[2]._delegate || !item[2]._delegate(old, key, item[0], false)))
             old.mix(item[0], item[1], item[2], false, item[3], item[4]);
         }
       }
@@ -171,7 +171,7 @@ LSD.Object.prototype = {
   mix: function(key, value, memo, state, merge, prepend, index) {
     if (!memo && this._delegate) memo = this;
     if (typeof key != 'string') {
-      if (merge) {
+      if (merge && typeof key._unwatch == 'function') {
         if (state === false) {
           key.unwatch(this);
         } else {  
@@ -197,10 +197,14 @@ LSD.Object.prototype = {
       if (typeof index != 'number') index = key.indexOf('.', typeof index == 'number' ? index: -1);
       if ((index > -1 || (typeof value == 'object'  && typeof value.exec != 'function'
       && typeof value.push != 'function' && typeof value.nodeType != 'number')) && (!value._constructor || merge)) {
-        var obj = this[key];
+        if (index > -1) {
+          var name = key.substr(key.lastIndexOf('.', index - 1) + 1, index)
+          var subkey = key.substring(index + 1);
+        } else var name = key;
+        var obj = this[name];
         var storage = (this._stored || (this._stored = {}));
-        var group = storage[key];
-        if (!group) group = storage[key] = [];
+        var group = storage[name];
+        if (!group) group = storage[name] = [];
         if (state === false) {
           for (var i = 0, j = group.length, k = +(index > -1); i < j; i++) {
             if (group[i][k] === value) {
@@ -209,16 +213,19 @@ LSD.Object.prototype = {
             }
           }
         } else {
-          // store either [object, null] or [key, value] to match .mix arguments
+          // store either [object, null] or [name, value] to match .mix arguments
           group.push([index > -1 ? key.substring(index + 1) : value, index > -1 ? value : null, memo, merge, prepend, index]);
         }
         if (obj == null) {
-          if (state !== false) obj = this._construct(key, null, memo, value);
+          if (state !== false) obj = this._construct(name, null, memo, value);
         } else if (obj.push) {
-          for (var i = 0, j = obj.length; i < j; i++)
-            obj[i].mix(value, null, memo, state, merge, prepend);
+          for (var i = 0, j = obj.length; i < j; i++) {
+            if (index > -1) obj[i].mix(name, value, state, merge, prepend)
+            else obj[i].mix(value, null, memo, state, merge, prepend);
+          }
         } else {
-          obj.mix(value, null, memo, state, merge, prepend);
+          if (index > -1) obj.mix(key.substring(index + 1), value, memo, state, merge, prepend);
+          else obj.mix(value, null, memo, state, merge, prepend);
         }
       } else {
         this[state !== false ? 'set' : 'unset'](key, value, memo, prepend);
