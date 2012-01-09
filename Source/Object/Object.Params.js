@@ -22,15 +22,32 @@ LSD.Object.Params = function() {
   LSD.Object.apply(this, arguments);
 };
 
-LSD.Object.Params.prototype = Object.append(new LSD.Object, {
-  _constructor: LSD.Object.Params,
-
-  set: function(key, value) {
-    for (var regex = LSD.Object.Params.rNameParser, matched = [], match; match = regex.exec(key);)
-      matched.push(match);
-    for (var i = 0, next, array, index, object = this, name; match = matched[i++];) {
-      name = match[1] == null ? match[2] : match[1];
-      next = matched[i] ? matched[i][2] : null
+LSD.Object.Params.prototype = new LSD.Object;
+LSD.Object.Params.prototype.get = function(key, value) {
+  for (var regex = LSD.Object.Params.rNameParser, matched = [], match; match = regex.exec(key);)
+    matched.push(match);
+  for (var i = 0, next, array, index, name, object = this; match = matched[i++];) {
+    name = match[1] == null ? match[2] : match[1];
+    if (name === '') name = object.length - 1;
+    if (i == matched.length) {
+      return object[name];
+    } else if ((object = object[name]) == null) {
+      return;
+    }
+  }
+};
+LSD.Object.Params.prototype.onChange = function(key, value, state, old, memo) {
+  for (var i = 0, l = key.length, j, name, next, array, index; j !== -1; ) {
+    if ((j = key.indexOf('[', j)) == -1) {
+      name = next == null ? key.substr(i, l) : next;
+      next = null;
+    } else {
+      name = key.substr(i, j - 1);
+      i = j + 1;
+      j = key.indexOf('[', i);
+      next = j == -1 ? null : key.substr(i, j - 1);
+    }
+    if (state) {
       index = (next === '' || (parseInt(next) == next));
       if (array) {
         if (next != null && !object[name]) {
@@ -49,37 +66,13 @@ LSD.Object.Params.prototype = Object.append(new LSD.Object, {
         } else object.push(value)
       } else object = object[name]
       array = index;
-    }
-  },
-  
-  unset: function(key, value) {
-    for (var regex = LSD.Object.Params.rNameParser, matched = [], match; match = regex.exec(key);)
-      matched.push(match);
-    for (var i = 0, next, array, index, name, object = this; match = matched[i++];) {
-      name = match[1] == null ? match[2] : match[1];
+    } else {
       if (name === '') name = object.length - 1;
       if (i == matched.length) {
         if (object !== this) object.unset(name, value);
         else LSD.Object.prototype.unset.call(this, name, value);
       } else object = object[name];
     }
-  },
-  
-  get: function(key, value) {
-    for (var regex = LSD.Object.Params.rNameParser, matched = [], match; match = regex.exec(key);)
-      matched.push(match);
-    for (var i = 0, next, array, index, name, object = this; match = matched[i++];) {
-      name = match[1] == null ? match[2] : match[1];
-      if (name === '') name = object.length - 1;
-      if (i == matched.length) {
-        return object[name];
-      } else if ((object = object[name]) == null) {
-        return;
-      }
-    }
-  },
-  
-  _exclusions: Array.object('_method')
-});
-
-LSD.Object.Params.rNameParser = /(^[^\[]+)|\[([^\]]*)\]/g;
+  }
+};
+LSD.Object.Params.prototype._exclusions = Array.object('_method');
