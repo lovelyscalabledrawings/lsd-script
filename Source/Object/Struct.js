@@ -31,7 +31,6 @@ LSD.Struct = function(properties) {
     } else constructor = LSD.Object;
     var Struct = function(object) {
       if (properties) this._properties = this._toObject = properties;
-      this._length = 0;
       if (object != null) this.mix(object)
       if (properties && properties.initialize) properties.initialize.apply(this, Array.prototype.slice.call(args, 1));
       if (this.initialize) this.initialize.apply(this, Array.prototype.slice.call(args, 1));

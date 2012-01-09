@@ -23,7 +23,6 @@ provides:
 */
 
 LSD.Object.Group = function(object) {
-  this._length = 0;
   if (object != null) this.mix(object)
 };
 

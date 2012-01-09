@@ -15,6 +15,7 @@ requires:
 
 provides:
   - LSD.Object.Stack
+  - LSD.Struct.Stack
 
 ...
 */
@@ -33,7 +34,6 @@ provides:
 */
 
 LSD.Object.Stack = function(object) {
-  this._length = 0;
   if (object != null) this.mix(object)
 };
 

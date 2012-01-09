@@ -19,12 +19,13 @@ provides:
 */
 
 LSD.Object = function(object) {
-  this._length = 0;
   if (object != null) this.mix(object)
 };
 
 LSD.Object.prototype = {
   _constructor: LSD.Object,
+  
+  _length: 0,
   
   set: function(key, value, memo, index, hash) {
     /*

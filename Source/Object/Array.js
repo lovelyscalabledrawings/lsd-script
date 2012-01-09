@@ -27,11 +27,8 @@ provides:
 
 LSD.Array = function(arg) {
   if (!this.push) {
-    var array = new LSD.Array;
-    array.push.apply(array, arguments);
-    return array;
+    return LSD.Array.from(arguments);
   } else {
-    this.length = 0;
     var j = arguments.length;
     if (j == 1) {
       if (arg != null && !arg.match && Type.isEnumerable(arg)) {
@@ -50,6 +47,8 @@ LSD.Array = function(arg) {
 LSD.Array.prototype = Object.append(new LSD.Object, {
   _constructor: LSD.Array,
   
+  length: 0,
+  
   push: function() {
     for (var i = 0, j = arguments.length, length, arg; i < j; i++) {
       arg = arguments[i];
@@ -64,7 +63,7 @@ LSD.Array.prototype = Object.append(new LSD.Object, {
       return this._set(key, value, memo);
     } else {
       this[index] = value;
-      if (index + 1 > this.length) this.length = index + 1;
+      if (index + 1 > this.length) this.set('length', index + 1);
       var watchers = this.__watchers;
       if (watchers) for (var i = 0, j = watchers.length, fn; i < j; i++) {
         var fn = watchers[i];
@@ -345,6 +344,13 @@ LSD.Array.prototype = Object.append(new LSD.Object, {
   }
 });
 
+LSD.Array.from = function(origin) {
+  var array = new LSD.Array;
+  if (typeof origin.push == 'function') array.push.apply(array, origin);
+  else array.push(origin);
+  return array;
+}
+
 LSD.Array.prototype['<<'] = LSD.Array.prototype.push;
 LSD.Array.prototype['+'] = LSD.Array.prototype.concat;
 
@@ -363,4 +369,4 @@ LSD.Struct.Array = function(properties) {
   if (!properties) properties = {};
   properties._constructor = LSD.Array;
   return LSD.Struct(properties)
-}
+};
