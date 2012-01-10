@@ -71,7 +71,14 @@ LSD.Struct.prototype = {
         case 'initialized':
           
         default:
-          var prop = (this._properties && (this._properties[key] || this._properties[key.capitalize()])) || (this.properties && this.properties[key]);
+          if (this._properties) {
+            var prop = this._properties[key];
+            if (prop == null) {
+              var Key = key.charAt(0) + key.substring(1);
+              var prop = this._properties[Key]; 
+            }
+          }
+          if (prop == null && this.properties) prop = this.properties[key];
           if (prop) {
             var group = this._observed && this._observed[key]
             if (group) {
@@ -109,10 +116,17 @@ LSD.Struct.prototype = {
     return LSD.Object.prototype._construct.call(this, key, property, memo);
   },
   _getConstructor: function(key) {
-    var property = (this._properties && this._properties[key] || this._properties[key.capitalize()]) || (this.properties && this.properties[key]);
-    if (property) {
-      var proto = property.prototype;
-      if (proto && proto._constructor) return property;
+    if (this._properties) {
+      var prop = this._properties[key];
+      if (prop == null) {
+        var Key = key.charAt(0).toUpperCase() + key.substring(1);
+        var prop = this._properties[Key]; 
+      }
+    }
+    if (prop == null && this.properties) prop = this.properties[key];
+    if (prop) {
+      var proto = prop.prototype;
+      if (proto && proto._constructor) return prop;
     }
     return this._constructor;
   },
