@@ -29,6 +29,7 @@ LSD.Array = function(arg) {
   if (!this.push) {
     return LSD.Array.from(arguments);
   } else {
+    this.length = 0;
     var j = arguments.length;
     if (j == 1) {
       if (arg != null && !arg.match && Type.isEnumerable(arg)) {
@@ -46,8 +47,6 @@ LSD.Array = function(arg) {
 
 LSD.Array.prototype = Object.append(new LSD.Object, {
   _constructor: LSD.Array,
-  
-  length: 0,
   
   push: function() {
     for (var i = 0, j = arguments.length, length, arg; i < j; i++) {
@@ -346,7 +345,7 @@ LSD.Array.prototype = Object.append(new LSD.Object, {
 
 LSD.Array.from = function(origin) {
   var array = new LSD.Array;
-  if (typeof origin.push == 'function') array.push.apply(array, origin);
+  if (typeof origin != 'string' && typeof origin.length == 'number') array.push.apply(array, origin);
   else array.push(origin);
   return array;
 }

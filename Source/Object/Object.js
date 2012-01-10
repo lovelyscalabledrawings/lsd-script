@@ -64,8 +64,8 @@ LSD.Object.prototype = {
       object listeners. But they can be watched individually.
     */
     if (index !== -1 || key.charAt(0) != '_') {
-      if((typeof this._onChange == 'function' && typeof (value = this._onChange(key, value, true, old, memo, hash)) == 'undefined')
-      || (typeof this.onChange  == 'function' && typeof (value = this. onChange(key, value, true, old, memo, hash)) == 'undefined')) {
+      if((this._onChange && typeof (value = this._onChange(key, value, true, old, memo, hash)) == 'undefined')
+      || (this.onChange && typeof (value = this. onChange(key, value, true, old, memo, hash)) == 'undefined')) {
         if (hash == null) this[key] = old;
         return;
       }
@@ -195,39 +195,57 @@ LSD.Object.prototype = {
         object reference is changed, the stored values are removed from 
         old objects and applied to the new related object. 
       */
-      if (typeof index != 'number') index = key.indexOf('.', typeof index == 'number' ? index: -1);
-      if ((index > -1 || ((value != null && typeof value == 'object' && typeof value.exec != 'function'
-      && typeof value.push != 'function' && typeof value.nodeType != 'number') && (!value._constructor || merge)))) {
-        if (index > -1) {
-          var name = key.substr(key.lastIndexOf('.', index - 1) + 1, index) || '_parent';
-          var subkey = key.substring(index + 1);
-        } else var name = key;
+      if (index == null) index = key.indexOf('.', -1);
+      if (index > -1) {
+        var name = key.substr(key.lastIndexOf('.', index - 1) + 1, index) || '_parent';
         var obj = this[name];
         var storage = (this._stored || (this._stored = {}));
         var group = storage[name];
         if (!group) group = storage[name] = [];
         if (state === false) {
-          for (var i = 0, j = group.length, k = +(index > -1); i < j; i++) {
-            if (group[i][k] === value) {
+          for (var i = 0, j = group.length; i < j; i++) {
+            if (group[i][1] === value) {
               group.splice(i, 1);
               break;
             }
           }
         } else {
-          // store either [object, null] or [name, value] to match .mix arguments
-          group.push([index > -1 ? key.substring(index + 1) : value, index > -1 ? value : null, memo, merge, prepend, index]);
+          group.push([key.substring(index + 1), value, memo, merge, prepend, index]);
         }
         if (obj == null) {
-          if (state !== false && name.charAt(0) != '_') obj = this._construct(name, null, memo, value);
+          if (state !== false && name.charAt(0) != '_')
+            obj = this._construct(name, null, memo, value);
         } else if (obj.push) {
-          for (var i = 0, j = obj.length; i < j; i++) {
-            if (index > -1) obj[i].mix(name, value, memo, state, merge, prepend)
-            else if (!memo || !memo._delegate || !memo._delegate(obj[i], name, value, state))
-              obj[i].mix(value, null, memo, state, merge, prepend);
+          for (var i = 0, j = obj.length; i < j; i++)
+            obj[i].mix(name, value, memo, state, merge, prepend)
+        } else {
+          obj.mix(key.substring(index + 1), value, memo, state, merge, prepend);
+        }
+      } else if (value != null && (typeof value == 'object' && !value.exec && !value.push && !value.nodeType)
+                               && (!value._constructor || merge)) {
+        var obj = this[key];
+        var storage = (this._stored || (this._stored = {}));
+        var group = storage[key];
+        if (!group) group = storage[key] = [];
+        if (state === false) {
+          for (var i = 0, j = group.length; i < j; i++) {
+            if (group[i][0] === value) {
+              group.splice(i, 1);
+              break;
+            }
           }
         } else {
-          if (index > -1) obj.mix(key.substring(index + 1), value, memo, state, merge, prepend);
-          else obj.mix(value, null, memo, state, merge, prepend);
+          group.push([value, null, memo, merge, prepend, index]);
+        }
+        if (obj == null) {
+          if (state !== false && key.charAt(0) != '_') 
+            obj = this._construct(key, null, memo, value);
+        } else if (obj.push) {
+          for (var i = 0, j = obj.length; i < j; i++)
+            if (!memo || !memo._delegate || !memo._delegate(obj[i], key, value, state))
+              obj[i].mix(value, null, memo, state, merge, prepend);
+        } else {
+          obj.mix(value, null, memo, state, merge, prepend);
         }
       } else {
         this[state !== false ? 'set' : 'unset'](key, value, memo, prepend);
@@ -388,6 +406,8 @@ LSD.Object.prototype = {
     if ((vdef || !odef) && (value !== callback[2])) subject.set(property, value, memo);
     if (!vdef || (odef && subject._stack)) subject.unset(property, old, memo);
   },
+  
+  _toString: Object.prototype.toString,
   
   toString: function() {
     var string = '{';
