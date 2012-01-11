@@ -42,7 +42,10 @@ LSD.Object.Group.prototype = {
     }
     if (index === -1 && hash == null && key.charAt(0) != '_' && !(this._properties && this._properties[key])) {
       hash = this[key];
-      if (hash == null) hash = this[key] = new (this.___constructor || Array);
+      if (hash == null) {
+        hash = this[key] = new (this.___constructor || Array);
+        if (this.onGroup) this.onGroup(key, hash)
+      }
     }
     if (typeof (this._set(key, value, memo, index, hash)) != 'undefined') {
       if (hash != null) (prepend || value == null) ? hash.unshift(value) : hash.push(value);
