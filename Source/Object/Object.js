@@ -69,7 +69,7 @@ LSD.Object.prototype = {
         if (hash == null) this[key] = old;
         return;
       }
-      if (value != null && value._constructor && !value._parent)
+      if (value != null && value._constructor && value._parent !== false)
         value.set('_parent', this);
     }
     var watchers = this._watchers;
@@ -119,13 +119,13 @@ LSD.Object.prototype = {
         return false;
       if (value != null && value._constructor && value._parent === this) 
         value.unset('_parent', this);
-      var watchers = this._watchers;
-      if (watchers) for (var i = 0, j = watchers.length, watcher, fn; i < j; i++) {
-        if ((watcher = watchers[i]) == null) continue
-        if (typeof watcher == 'function') watcher.call(this, key, old, false, undefined, memo, hash);
-        else this._callback(watcher, key, old, false, undefined, memo, hash);
-      }
       this._length--;
+    }
+    var watchers = this._watchers;
+    if (watchers) for (var i = 0, j = watchers.length, watcher, fn; i < j; i++) {
+      if ((watcher = watchers[i]) == null) continue
+      if (typeof watcher == 'function') watcher.call(this, key, old, false, undefined, memo, hash);
+      else this._callback(watcher, key, old, false, undefined, memo, hash);
     }
     if (index === -1) {
       var watched = this._watched;
@@ -184,8 +184,8 @@ LSD.Object.prototype = {
           })
         }
       }
-      var method = typeof key.has == 'function' ? 'has' : 'hasOwnProperty'
-      for (var prop in key) if (key[method](prop))
+      var method = typeof key.has == 'function' ? 'has' : 'hasOwnProperty';
+      for (var prop in key) if (key[method](prop) && (!memo || !memo._unstorable || !memo._unstorable[prop]))
         this.mix(prop, key[prop], memo, state, merge, prepend);
     } else {
       /*
@@ -198,7 +198,8 @@ LSD.Object.prototype = {
       if (index == null) index = key.indexOf('.', -1);
       if (index > -1) {
         var name = key.substr(key.lastIndexOf('.', index - 1) + 1, index) || '_parent';
-        var obj = this[name];
+        var subkey = key.substring(index + 1);
+        if (this.onStore && typeof this.onStore(name, value, memo, subkey) == 'undefined') return;
         var storage = (this._stored || (this._stored = {}));
         var group = storage[name];
         if (!group) group = storage[name] = [];
@@ -212,6 +213,7 @@ LSD.Object.prototype = {
         } else {
           group.push([key.substring(index + 1), value, memo, merge, prepend, index]);
         }
+        var obj = this[name];
         if (obj == null) {
           if (state !== false && name.charAt(0) != '_')
             obj = this._construct(name, null, memo, value);
@@ -223,7 +225,7 @@ LSD.Object.prototype = {
         }
       } else if (value != null && (typeof value == 'object' && !value.exec && !value.push && !value.nodeType)
                                && (!value._constructor || merge)) {
-        var obj = this[key];
+        if (this.onStore && typeof this.onStore(key, value, memo) == 'undefined') return;
         var storage = (this._stored || (this._stored = {}));
         var group = storage[key];
         if (!group) group = storage[key] = [];
@@ -236,7 +238,8 @@ LSD.Object.prototype = {
           }
         } else {
           group.push([value, null, memo, merge, prepend, index]);
-        }
+        }  
+        var obj = this[key];
         if (obj == null) {
           if (state !== false && key.charAt(0) != '_') 
             obj = this._construct(key, null, memo, value);
