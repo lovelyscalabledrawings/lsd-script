@@ -40,9 +40,9 @@ LSD.Object.Stack = function(object) {
 LSD.Object.Stack.prototype = {
   _constructor: LSD.Object.Stack,
   
-  set: function(key, value, memo, prepend) {
+  set: function(key, value, memo, prepend, hash) {
     if (typeof key != 'string') {
-      var hash = this._hash(key);
+      if (hash == null) hash = this._hash(key);
       if (typeof hash == 'string') {
         key = hash;
         var index = key.indexOf('.');
@@ -66,11 +66,11 @@ LSD.Object.Stack.prototype = {
       } else group.push(value);
     }
     if (value !== this[key] || typeof value === 'undefined')
-      return this._set(key, value, memo, index);
+      return this._set(key, value, memo, index, hash);
   },
-  unset: function(key, value, memo, prepend) {
+  unset: function(key, value, memo, prepend, hash) {
     if (typeof key != 'string') {
-      var hash = this._hash(key);
+      if (hash == null) hash = this._hash(key);
       if (typeof hash == 'string') {
         key = hash;
         var index = key.indexOf('.');
@@ -108,7 +108,7 @@ LSD.Object.Stack.prototype = {
       } else var method = '_unset';
     }
     if (method !== '_set' || value != this[key])
-      return this[method || '_unset'](key, value, memo, index);
+      return this[method || '_unset'](key, value, memo, index, hash);
   },
   write: function(key, value, memo) {
     if (value != null) {
