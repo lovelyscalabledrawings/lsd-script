@@ -199,7 +199,7 @@ LSD.Object.prototype = {
       if (index > -1) {
         var name = key.substr(key.lastIndexOf('.', index - 1) + 1, index) || '_parent';
         var subkey = key.substring(index + 1);
-        if (this.onStore && typeof this.onStore(name, value, memo, subkey) == 'undefined') return;
+        if (this.onStore && typeof this.onStore(name, value, memo, state, prepend, subkey) == 'undefined') return;
         var storage = (this._stored || (this._stored = {}));
         var group = storage[name];
         if (!group) group = storage[name] = [];
@@ -225,7 +225,7 @@ LSD.Object.prototype = {
         }
       } else if (value != null && (typeof value == 'object' && !value.exec && !value.push && !value.nodeType)
                                && (!value._constructor || merge)) {
-        if (this.onStore && typeof this.onStore(key, value, memo) == 'undefined') return;
+        if (this.onStore && typeof this.onStore(key, value, memo, state, prepend) == 'undefined') return;
         var storage = (this._stored || (this._stored = {}));
         var group = storage[key];
         if (!group) group = storage[key] = [];
