@@ -288,7 +288,7 @@ Parser.prototype.materialize = LSD.Script.materialize = function(object, source,
 }
 
 Parser.rVariable = /^[a-z0-9][a-z_\-0-9.\[\]]*$/ig;
-Parser.Combinators = Array.object('+', '>', '!+', '++', '!~', '~~', '&', '&&', '$', '$$');
+Parser.Combinators = {'+': 1, '>': 1, '!+': 1, '++': 1, '!~': 1, '~~': 1, '&': 1, '&&': 1, '$': 1, '$$': 1};
 Parser.rLine = /^([ \t]*)([^\n]*?)\s*(?:\|([^|]*?)\|\s*)?(?:\n|$)/gm
 
 var x = exports.combineRegExp

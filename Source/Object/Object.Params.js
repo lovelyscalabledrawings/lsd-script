@@ -75,4 +75,4 @@ LSD.Object.Params.prototype.onChange = function(key, value, state, old, memo) {
     }
   }
 };
-LSD.Object.Params.prototype._exclusions = Array.object('_method');
+LSD.Object.Params.prototype._exclusions = {'_method': true};
