@@ -60,7 +60,7 @@ LSD.Object.Stack.prototype = {
       if (!group) group = stack[key] = []
     }
     if (group != null) {
-      if (prepend || value == null) {
+      if (prepend) {
         var length = group.unshift(value);
         if (length > 1) value = group[length - 1];
       } else group.push(value);
