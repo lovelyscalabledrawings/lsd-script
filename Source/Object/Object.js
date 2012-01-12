@@ -415,8 +415,9 @@ LSD.Object.prototype = {
   toString: function() {
     var string = '{';
     for (var property in this)
-      if (this.has(property))
-        string += property + ': ' + this[property];
+      if (this.has(property)) {
+        string += (string.length > 1 ? ', ' : '') + (property + ': ' + this[property]);
+      }
     return string + '}'
   },
 
