@@ -10,12 +10,6 @@ current: 0.3
 tags: [aop, reactive, script]
 sources:
   - Source/Script.js
-  - Source/Object/Object.js
-  - Source/Object/Object.Stack.js
-  - Source/Object/Object.Params.js
-  - Source/Object/Object.Group.js
-  - Source/Object/Struct.js
-  - Source/Object/Array.js
   - Source/Variable/Scope.js
   - Source/Variable/Variable.js
   - Source/Variable/Function.js

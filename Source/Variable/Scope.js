@@ -11,7 +11,7 @@ authors: Yaroslaff Fedin
  
 requires:
   - LSD.Script
-  - LSD.Object
+  - LSD/LSD.Object
   
 provides:
   - LSD.Script.Scope
