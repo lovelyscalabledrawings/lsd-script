@@ -79,7 +79,7 @@ LSD.Object.Params.prototype = Object.append(new LSD.Object, {
     }
   },
   
-  _exclusions: Array.object('_method')
+  _exclusions: Array.object('_method', '_type')
 });
 
 LSD.Object.Params.rNameParser = /(^[^\[]+)|\[([^\]]*)\]/g;
