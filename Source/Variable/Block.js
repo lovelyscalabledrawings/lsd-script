@@ -110,6 +110,7 @@ LSD.Script.Block.prototype = {
         }
     }
   },
+  
   detach: function(origin) {
     delete this.value;
     if (this.invoked) {
@@ -166,12 +167,6 @@ LSD.Script.Block.prototype = {
         if (!parent.translating) 
           LSD.Script.Variable.prototype.onSet.call(parent, null, false);
       }
-  },
-  
-  unuse: function(origin, arg) {
-    //var paths = [];
-    //if (!arg) arg = this;
-    //for (var i = 0, j = this.args.length; i < j;)
   }
 };
 
