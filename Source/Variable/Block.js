@@ -110,6 +110,7 @@ LSD.Script.Block.prototype = {
         }
     }
   },
+  
   detach: function(origin) {
     delete this.value;
     if (this.invoked) {
@@ -154,8 +155,10 @@ LSD.Script.Block.prototype = {
   
   onSet: function(value) {
     if (this.output) this.update(value);
-    if (this.yielder && this.invoked && this.invoked !== true)
+    if (this.yielder && this.invoked && this.invoked !== true) {
       this.yielder(value, this.invoked[0], this.invoked[1], this.invoked[2], this.invoked[3]);
+      delete this.invoked[3];
+    }
     return LSD.Script.Variable.prototype.onSet.call(this, value, false);
   },
   
