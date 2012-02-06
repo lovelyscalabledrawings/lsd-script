@@ -91,6 +91,11 @@ LSD.Script.output = function(object, value) {
         object.nodeValue = value;
         break;
       case 8:
+      default:
+        if (typeof object == 'string') {
+          if (typeof value == 'undefined' && typeof old != 'undefined') this.source.unset(object, old)
+          else this.source[typeof old != 'undefined' ? 'reset' : 'set'](object, value)
+        }
     }
   }
 };
