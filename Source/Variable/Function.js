@@ -145,7 +145,7 @@ LSD.Script.Function.prototype = {
     }
     if (this.piped) {
       this.isPiped = true;
-      if (this.piped.nodeType && this.piped[name] && (args[0] == null || !args[0].nodeType)) {
+      if (this.piped.nodeType && this.piped[name] && (args[0] == null || (!args[0].nodeType && !args[0][name]))) {
         args.unshift(this.piped)
       } else {
         args.push(this.piped)
