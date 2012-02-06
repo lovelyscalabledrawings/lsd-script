@@ -68,18 +68,19 @@ LSD.Script.Variable.prototype = {
     var old = this.value;
     this.value = this.process ? this.process(value) : value;
     if (reset || typeof this.value == 'function' || old !== this.value || (this.invalidator && (this.invalidator())))
-      this.onSet(this.value);
+      this.onSet(this.value, null, old);
   },
   
-  onSet: function(value, output) {
+  onSet: function(value, output, old) {
     if (value == null && this.placeholder) value = this.placeholder;
-    if (this.output && output !== false) this.update(value);
-    if (this.attached && this.parents)
+    if (this.output && output !== false) this.update(value, old);
+    if (this.attached !== false && this.parents)
       for (var i = 0, parent; parent = this.parents[i++];) {
-        if (!parent.translating && parent.attached) parent.set();
+        if (!parent.translating && parent.attached !== false) parent.set();
       }
     if (this.wrapper && this.wrapper.wrappee)
       this.wrapper.wrappee.onSuccess(value)
+    return this;
   },
   
   attach: function(origin) {
@@ -102,7 +103,7 @@ LSD.Script.Variable.prototype = {
   },
   
   request: function(input, callback, source, state) {
-    return this.source.variables[state ? 'watch' : 'unwatch'](input, callback);
+    return (this.source.variables || this.source)[state ? 'watch' : 'unwatch'](input, callback);
   },
   
   getContext: function() {
