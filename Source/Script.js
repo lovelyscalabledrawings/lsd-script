@@ -67,13 +67,12 @@ LSD.Script = function(input, source, output) {
   return result;
 };
 
-LSD.Script.output = function(object, value) {
+LSD.Script.output = function(object, value, old) {
   if (object.block) {
     object.set(value);
   } else if (object.call) {
     object(value);
   } else {
-    if (value == null) value = '';
     switch (object.nodeType) {
       case 1:
         if (object.lsd) object.write(value)
@@ -83,11 +82,11 @@ LSD.Script.output = function(object, value) {
         var widget = object.ownerElement.lsd ? object.ownerElement : Element.retrieve(object.ownerElement, 'widget');
         if (widget) {
           if (object.name == "value")
-            widget.setValue(value);
+            widget.setValue(value || '');
           else
             widget.attributes.set(object.name, value);
         } else {
-          object.ownerElement.setAttribute(object.name, value);
+          object.ownerElement.setAttribute(object.name, value || '');
           object.ownerElement[object.name] = value;
         }
         break;
@@ -107,10 +106,10 @@ LSD.Script.output = function(object, value) {
 LSD.Script.prototype = {
   callback: LSD.Script.output,
   
-  update: function(value) {
+  update: function(value, old) {
     var output = this.output;
     if (!output) return;
-    return this.callback(this.output, value); 
+    return this.callback(this.output, value, old); 
   },
   
   wrap: function(script) {
