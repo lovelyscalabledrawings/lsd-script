@@ -22,7 +22,7 @@ LSD.Object.Params = function() {
   LSD.Object.apply(this, arguments);
 };
 
-LSD.Object.Params.prototype = Object.append(new LSD.Object, {
+LSD.Object.Params.prototype = Object.append(new LSD.Object.Stack, {
   _constructor: LSD.Object.Params,
 
   set: function(key, value) {
@@ -45,7 +45,7 @@ LSD.Object.Params.prototype = Object.append(new LSD.Object, {
       if (next == null) {
         if (name !== '') {
           if (object !== this) object.set(name, value);
-          else LSD.Object.prototype.set.call(this, name, value);
+          else LSD.Object.Stack.prototype.set.call(this, name, value);
         } else object.push(value)
       } else object = object[name]
       array = index;
@@ -60,7 +60,7 @@ LSD.Object.Params.prototype = Object.append(new LSD.Object, {
       if (name === '') name = object.length - 1;
       if (i == matched.length) {
         if (object !== this) object.unset(name, value);
-        else LSD.Object.prototype.unset.call(this, name, value);
+        else LSD.Object.Stack.prototype.unset.call(this, name, value);
       } else object = object[name];
     }
   },
