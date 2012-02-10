@@ -10,7 +10,7 @@ license: Public domain (http://unlicense.org).
 authors: Yaroslaff Fedin
 
 requires:
-  - LSD.Object
+  - LSD.Object.Stack
 
 provides:
   - LSD.Object.Params
